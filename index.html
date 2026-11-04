@@ -771,6 +771,17 @@ function viewSP() {
         <button type="button" class="small" data-live="${h.id}" id="live-${h.id}"${live.busy ? " disabled" : ""}>${live.busy ? "Fetching…" : "Get live price"}</button>
         ${live.msg ? `<span class="hint ${live.ok ? "pos" : live.busy ? "" : "warn-t"}" style="flex:1 1 200px">${esc(live.msg)}</span>` : `<span class="hint" style="flex:1 1 200px">${h.ticker ? "From Yahoo Finance (" + esc(h.ticker) + ")" : "Set a Yahoo ticker to fetch prices"}</span>`}
       </div>
+      ${(() => { const ob = h.buys.find(b => b.opening); const sh = ob && num(ob.price) ? num(ob.amount) / num(ob.price) : 0; return `
+      <form class="stack" data-openform="${h.id}" style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px">
+        <div class="hint" style="margin:0"><b style="color:var(--fg)">Shares you already own</b> · ${ob ? `now set to ${+sh.toFixed(4)} shares at ${gbp(num(ob.price))} average (${gbp(num(ob.amount))} paid), as of ${shortDate(ob.date)}` : "if you bought before using this tracker, enter what you hold and your average price"}</div>
+        <div class="row">
+          <label class="f">Number of shares<input id="os-${h.id}" inputmode="decimal" value="${ob ? +sh.toFixed(4) : ""}" placeholder="e.g. 25.5"></label>
+          <label class="f">Average price paid<span class="money"><input id="oa-${h.id}" inputmode="decimal" value="${ob ? num(ob.price) : ""}" placeholder="0.00"></span></label>
+          <label class="f">As of<input type="date" id="od-${h.id}" value="${ob ? ob.date : todayISO()}"></label>
+          <button class="primary" type="submit" id="ob-${h.id}">${ob ? "Update" : "Save"}</button>
+        </div>
+        ${ob ? `<div><button type="button" class="small ghost" data-clearopen="${h.id}" id="oc-${h.id}">Remove starting holding</button></div>` : ""}
+      </form>`; })()}
       <details class="more" data-pot-details="h-${h.id}"${open}><summary>Name and delete</summary>
         <div class="row">
           <label class="f">Name<input id="hn-${h.id}" data-hid="${h.id}" data-hf="name" value="${esc(h.name)}" maxlength="50"></label>
@@ -788,7 +799,7 @@ function viewSP() {
   const rows = allBuys.map(({ h, b, avg }) => {
     const sh = num(b.price) ? num(b.amount) / num(b.price) : 0;
     const cheap = num(b.price) <= avg;
-    return `<tr><td>${shortDate(b.date)}</td><td><span class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${h.color};margin-right:6px"></span>${esc(h.short || h.name)}</td><td class="r">${gbp(num(b.amount))}</td><td class="r">${gbp(num(b.price))}</td><td class="r">${sh.toFixed(4)}</td><td><span class="pill ${cheap ? "g" : "r"}">${cheap ? "Below avg" : "Above avg"}</span></td><td class="r" style="width:30px"><button class="x" data-delbuy="${h.id}|${b.id}" id="db-${b.id}" aria-label="Delete buy">×</button></td></tr>`;
+    return `<tr><td>${shortDate(b.date)}</td><td><span class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${h.color};margin-right:6px"></span>${esc(h.short || h.name)}</td><td class="r">${gbp(num(b.amount))}</td><td class="r">${gbp(num(b.price))}</td><td class="r">${sh.toFixed(4)}</td><td>${b.opening ? '<span class="pill b">Starting holding</span>' : `<span class="pill ${cheap ? "g" : "r"}">${cheap ? "Below avg" : "Above avg"}</span>`}</td><td class="r" style="width:30px"><button class="x" data-delbuy="${h.id}|${b.id}" id="db-${b.id}" aria-label="Delete buy">×</button></td></tr>`;
   }).join("");
   const repeats = hs.map(h => { const st = holdStats(h); const l = st.buys[st.buys.length - 1]; return l ? `<button class="small" data-repeat="${h.id}" id="rep-${h.id}">${esc(h.short || h.name)}: ${gbp(num(l.amount))} at ${gbp(num(l.price))}, ${shortDate(nextBuyDate(l))}</button>` : ""; }).filter(Boolean).join(" ");
   const yrs = [1, 5, 10, 20];
@@ -1142,6 +1153,14 @@ app.addEventListener("submit", e => {
     const add = num($("#cashIn").value); if (add <= 0) return;
     setCash(latestAt(state.sp.cash.history, todayISO()) + add);
     save(); render(); toast("Added " + gbp(add) + " to cash");
+  } else if (f.dataset.openform) {
+    const h = state.sp.holdings.find(h => h.id === f.dataset.openform); if (!h) return;
+    const shares = num($("#os-" + h.id).value), avg = num($("#oa-" + h.id).value), date = $("#od-" + h.id).value || todayISO();
+    if (shares <= 0 || avg <= 0) { toast("Enter how many shares and the average price you paid"); return; }
+    h.buys = h.buys.filter(b => !b.opening);
+    h.buys.push({ id: uid(), date, amount: +(shares * avg).toFixed(2), price: avg, opening: true, fromCash: false });
+    if (!num(h.currentPrice)) { h.currentPrice = avg; h.priceDate = date; }
+    save(); render(); toast((h.short || h.name) + ": starting holding saved");
   } else if (f.dataset.priceform) {
     const h = state.sp.holdings.find(h => h.id === f.dataset.priceform); if (!h) return;
     h.currentPrice = num($("#hp-" + h.id).value); h.priceDate = $("#hd-" + h.id).value || todayISO();
@@ -1175,6 +1194,7 @@ app.addEventListener("click", e => {
   if (b.dataset.years) { state.forecast.years = Number(b.dataset.years); save(); render(); return; }
   if (b.dataset.delcat) { if (!confirmFirst(b)) return; state.categories = state.categories.filter(c => c.id !== b.dataset.delcat); save(); render(); return; }
   if (b.dataset.hold) { ui.hold = b.dataset.hold; render(); return; }
+  if (b.dataset.clearopen) { if (!confirmFirst(b)) return; const h = state.sp.holdings.find(h => h.id === b.dataset.clearopen); if (h) h.buys = h.buys.filter(x => !x.opening); save(); render(); return; }
   if (b.dataset.delbuy) { if (!confirmFirst(b)) return; const [hid, bid] = b.dataset.delbuy.split("|"); const h = state.sp.holdings.find(h => h.id === hid); if (h) h.buys = h.buys.filter(x => x.id !== bid); save(); render(); return; }
   if (b.dataset.delhold) { if (!confirmFirst(b)) return; state.sp.holdings = state.sp.holdings.filter(h => h.id !== b.dataset.delhold); save(); render(); return; }
   if (b.dataset.repeat) {
