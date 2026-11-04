@@ -289,7 +289,7 @@ function exampleState() {
         { ...sglnBlank(), buys: gold, currentPrice: +(gp + 0.6).toFixed(2) }
       ],
       cash: { rate: 3.75, history: [{ date: endOf(3), value: 180 }, { date: todayISO(), value: 95.4 }] } },
-    forecast: { years: 10, weekly: 50, rate: 7 },
+    forecast: { years: 10, monthly: 500, rate: 7 },
     plan: PLAN_DEFAULT(),
     gifts: [
       { id: uid(), name: "Mum", type: "birthday", date: yr + "-08-14", budget: 50, spent: 60, bought: shiftMonth(now, -3) + "-08" },
@@ -307,7 +307,7 @@ function blankState() {
     categories: baseCategories(), months: {}, pots: [],
     goal: { name: "Savings goal", target: 10000 },
     sp: { holdings: [{ id: "sp500", name: "Vanguard S&P 500 UCITS ETF (VUSA, Dist)", short: "S&P 500 (VUSA)", ticker: "VUSA.L", color: "#f08a4b", buys: [], currentPrice: 0, priceDate: todayISO() }, sglnBlank()], cash: { rate: 0, history: [] } },
-    forecast: { years: 10, weekly: 50, rate: 7 },
+    forecast: { years: 10, monthly: 500, rate: 7 },
     plan: PLAN_DEFAULT(),
     gifts: []
   };
@@ -723,6 +723,8 @@ function drawWealth() {
 }
 
 /* ----- S&P 500 ----- */
+const fMonthly = f => f.monthly !== undefined && f.monthly !== null && f.monthly !== "" ? num(f.monthly) : Math.round(fWeeklyAmt(f) * 52 / 12);
+const fWeeklyAmt = f => fMonthly(f) * 12 / 52;
 function forecastSeries(start, weekly, ratePct, years) {
   const rw = Math.pow(1 + ratePct / 100, 1 / 52) - 1;
   const weeks = Math.round(52 * years);
@@ -791,8 +793,8 @@ function viewSP() {
   const repeats = hs.map(h => { const st = holdStats(h); const l = st.buys[st.buys.length - 1]; return l ? `<button class="small" data-repeat="${h.id}" id="rep-${h.id}">${esc(h.short || h.name)}: ${gbp(num(l.amount))} at ${gbp(num(l.price))}, ${shortDate(nextBuyDate(l))}</button>` : ""; }).filter(Boolean).join(" ");
   const yrs = [1, 5, 10, 20];
   const start = s.total;
-  const end = r => forecastSeries(start, num(f.weekly), r, num(f.years)).slice(-1)[0];
-  const putIn = s.paid + s.cash + num(f.weekly) * 52 * num(f.years);
+  const end = r => forecastSeries(start, fWeeklyAmt(f), r, num(f.years)).slice(-1)[0];
+  const putIn = s.paid + s.cash + fWeeklyAmt(f) * 52 * num(f.years);
   const split = s.per.map(({ h, st }) => esc(h.short || h.name) + " " + gbp0(st.value)).join(" · ");
   return `${exampleBanner()}
   <div class="view-head"><div><h2>S&amp;P 500 &amp; Gold</h2><p class="sub">Log each buy at the price you paid. Keep the cash waiting in the account up to date too.</p></div></div>
@@ -850,7 +852,7 @@ function viewSP() {
       <p class="hint" style="margin-top:-6px">Starts from your whole portfolio of ${gbp0(start)} (all investments and cash). Gold doesn't move with the S&amp;P, so treat this as a rough guide.</p>
       <div class="grid g3" style="align-items:end">
         <div><div class="hint" style="margin-bottom:6px">How far ahead</div><div class="seg" role="group" aria-label="Forecast years">${yrs.map(y => `<button type="button" data-years="${y}" id="yr-${y}" aria-pressed="${num(f.years) === y}">${y} yr${y > 1 ? "s" : ""}</button>`).join("")}</div></div>
-        <label class="f">Weekly deposit<div class="range-row"><input type="range" id="fWeekly" min="0" max="500" step="5" value="${num(f.weekly)}" aria-label="Weekly deposit"><output id="fWeeklyOut">${gbp0(num(f.weekly))}</output></div></label>
+        <label class="f">Monthly deposit<div class="range-row"><input type="range" id="fWeekly" min="0" max="5000" step="25" value="${Math.min(5000, fMonthly(f))}" aria-label="Monthly deposit"><span class="money" style="flex:0 0 110px"><input id="fMonthlyNum" inputmode="decimal" value="${fMonthly(f)}" aria-label="Monthly deposit amount"></span></div></label>
         <label class="f">Your own growth rate<div class="range-row"><input type="range" id="fRate" min="0" max="15" step="0.5" value="${num(f.rate)}" aria-label="Yearly growth rate"><output id="fRateOut">${num(f.rate)}% / yr</output></div></label>
       </div>
       <div class="chart-box tall" style="margin-top:16px"><canvas id="cForecast"></canvas></div>
@@ -868,10 +870,10 @@ let forecastChart = null;
 function forecastData() {
   const s = spValueNow(), f = state.forecast, Y = num(f.years);
   const lines = [["Cautious 4%", 4, "#ef5b52"], ["Average 7%", 7, "#3ec27f"], ["Strong 10%", 10, "#5fe0a0"], ["Your rate " + num(f.rate) + "%", num(f.rate), "#e6a63c"]];
-  const series = lines.map(([n, r, c], i) => ({ label: n, data: forecastSeries(s.total, num(f.weekly), r, Y), borderColor: c, backgroundColor: c, borderDash: i === 3 ? [6, 4] : [], pointRadius: 0, tension: .25, borderWidth: i === 1 ? 3 : 2 }));
+  const series = lines.map(([n, r, c], i) => ({ label: n, data: forecastSeries(s.total, fWeeklyAmt(f), r, Y), borderColor: c, backgroundColor: c, borderDash: i === 3 ? [6, 4] : [], pointRadius: 0, tension: .25, borderWidth: i === 1 ? 3 : 2 }));
   const n = series[0].data.length;
   const step = Y <= 1 ? 52 / 12 : 52;
-  series.push({ label: "Money put in", data: Array.from({ length: n }, (_, i) => s.paid + s.cash + num(f.weekly) * Math.min(step * i, 52 * Y)), borderColor: "#8ea79a", backgroundColor: "rgba(142,167,154,.08)", fill: true, pointRadius: 0, borderWidth: 1.5 });
+  series.push({ label: "Money put in", data: Array.from({ length: n }, (_, i) => s.paid + s.cash + fWeeklyAmt(f) * Math.min(step * i, 52 * Y)), borderColor: "#8ea79a", backgroundColor: "rgba(142,167,154,.08)", fill: true, pointRadius: 0, borderWidth: 1.5 });
   const now = new Date();
   const labels = Array.from({ length: n }, (_, i) => i === 0 ? "Now" : Y <= 1 ? monthLabel(shiftMonth(monthKey(now), i)) : String(now.getFullYear() + i));
   return { labels, series };
@@ -899,14 +901,14 @@ function drawSP() {
 }
 function updateForecastLive() {
   const f = state.forecast;
-  $("#fWeeklyOut").textContent = gbp0(num(f.weekly));
+  const box = $("#fMonthlyNum"); if (box && document.activeElement !== box) box.value = fMonthly(f);
   $("#fRateOut").textContent = num(f.rate) + "% / yr";
   if (forecastChart) { const fd = forecastData(); forecastChart.data.labels = fd.labels; fd.series.forEach((d, i) => { forecastChart.data.datasets[i].data = d.data; forecastChart.data.datasets[i].label = d.label; }); forecastChart.update("none"); }
   const s = spValueNow();
-  const putIn = s.paid + s.cash + num(f.weekly) * 52 * num(f.years);
+  const putIn = s.paid + s.cash + fWeeklyAmt(f) * 52 * num(f.years);
   const rates = [4, 7, 10, num(f.rate)];
   document.querySelectorAll("#fTable tbody tr").forEach((tr, i) => {
-    const e = forecastSeries(s.total, num(f.weekly), rates[i], num(f.years)).slice(-1)[0];
+    const e = forecastSeries(s.total, fWeeklyAmt(f), rates[i], num(f.years)).slice(-1)[0];
     tr.children[1].textContent = gbp0(putIn); tr.children[2].innerHTML = "<b>" + gbp0(e) + "</b>";
     tr.children[3].textContent = gbp0(e - putIn); tr.children[3].className = "r " + (e - putIn >= 0 ? "pos" : "neg");
     if (i === 3) tr.children[0].lastElementChild.textContent = "Your rate (" + num(f.rate) + "%)";
@@ -1046,7 +1048,7 @@ function render() {
   const note = ui.view === "settings" ? "" : ro ? `<div class="who-note"><b>Together:</b> ${HH.people.map(p => esc(p.name)).join(" + ")}, added up. Switch to one person at the top to change anything.</div>`
     : `<div class="who-note">Showing <b>${esc(personName(ui.who))}'s</b> money. Changes are saved and shared automatically.</div>`;
   $("#app").innerHTML = (tokenProblem && ui.view !== "settings" ? '<div class="banner"><span><b>Changes are not saving.</b> GitHub stopped accepting the access token. <a href="#settings" class="pos">Fix it in Settings</a>.</span></div>' : "") + note + v();
-  if (ro) $("#app").querySelectorAll("input, select").forEach(el => { if (!["fWeekly", "fRate"].includes(el.id)) el.disabled = true; });
+  if (ro) $("#app").querySelectorAll("input, select").forEach(el => { if (!["fWeekly", "fRate", "fMonthlyNum"].includes(el.id)) el.disabled = true; });
   renderWho();
   document.querySelectorAll("#tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === ui.view ? "page" : "false"));
   d();
@@ -1094,11 +1096,12 @@ app.addEventListener("change", e => {
   else if (t.id === "buyHold") { ui.hold = t.value; later(); }
   else if (t.dataset.hid) { const h = state.sp.holdings.find(h => h.id === t.dataset.hid); if (h) { h[t.dataset.hf] = t.value.trim() || (t.dataset.hf === "name" ? "Investment" : ""); save(); later(); } }
   else if (t.id === "cashRate") { state.sp.cash.rate = num(t.value); save(); later(); }
-  else if (t.id === "fWeekly" || t.id === "fRate") { save(); }
+  else if (t.id === "fWeekly" || t.id === "fRate" || t.id === "fMonthlyNum") { save(); }
 });
 app.addEventListener("input", e => {
   const t = e.target;
-  if (t.id === "fWeekly") { state.forecast.weekly = num(t.value); updateForecastLive(); }
+  if (t.id === "fWeekly") { state.forecast.monthly = num(t.value); updateForecastLive(); }
+  if (t.id === "fMonthlyNum") { state.forecast.monthly = Math.max(0, num(t.value)); const r = $("#fWeekly"); if (r) r.value = Math.min(5000, state.forecast.monthly); updateForecastLive(); }
   if (t.id === "fRate") { state.forecast.rate = num(t.value); updateForecastLive(); }
 });
 app.addEventListener("submit", e => {
@@ -1373,7 +1376,7 @@ function mergeStates() {
   const manual = ids.every(id => P[id].plan.startValue !== "" && P[id].plan.startValue !== null && P[id].plan.startValue !== undefined);
   out.plan = { monthly: ids.reduce((t, id) => t + num(P[id].plan.monthly), 0), start: starts[0] || monthKey(new Date()), startValue: manual ? ids.reduce((t, id) => t + num(P[id].plan.startValue), 0) : "", growth: ids.length ? ids.reduce((t, id) => t + num(P[id].plan.growth), 0) / ids.length : 4 };
   out.goal = { name: "Household goal", target: ids.reduce((t, id) => t + num(P[id].goal.target), 0) };
-  out.forecast = { ...(P[ids[0]] || out).forecast, weekly: ids.reduce((t, id) => t + num(P[id].forecast.weekly), 0) };
+  out.forecast = { ...(P[ids[0]] || out).forecast, monthly: ids.reduce((t, id) => t + fMonthly(P[id].forecast), 0) };
   return out;
 }
 function renderWho() {
