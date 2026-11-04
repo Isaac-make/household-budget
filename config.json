@@ -1,0 +1,11 @@
+{
+  "v": 1,
+  "owner": "Isaac-make",
+  "dataRepo": "Monetary-policy",
+  "token": {
+    "v": 1,
+    "salt": "x65VwUZ6oHyyA4klwTghgg==",
+    "iv": "A9vE44HwGTc0YmZa",
+    "ct": "OSkMs5OWqYFecO6YH4BD5+RCtNKeuz0gTswTZsLsYPFlCd/hZUfUpB4nUMBEDGx7dGeX6cesTKHlCPmz0f3cVtntzuanLCR5p4JH7VCxpqS2rkXu9Wx7Iwqe7abYyS9Mi809lN7MghH614u7jx4f"
+  }
+}
