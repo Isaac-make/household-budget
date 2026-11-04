@@ -723,7 +723,7 @@ function drawWealth() {
 }
 
 /* ----- S&P 500 ----- */
-const fMonthly = f => f.monthly !== undefined && f.monthly !== null && f.monthly !== "" ? num(f.monthly) : Math.round(fWeeklyAmt(f) * 52 / 12);
+const fMonthly = f => f.monthly !== undefined && f.monthly !== null && f.monthly !== "" ? num(f.monthly) : Math.round(num(f.weekly) * 52 / 12);
 const fWeeklyAmt = f => fMonthly(f) * 12 / 52;
 function forecastSeries(start, weekly, ratePct, years) {
   const rw = Math.pow(1 + ratePct / 100, 1 / 52) - 1;
