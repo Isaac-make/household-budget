@@ -150,6 +150,15 @@ body { margin: 0; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 .top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+/* Phones: the header scrolls away with the page instead of covering it */
+@media (max-width: 720px) {
+  header.top { position: static; }
+  .brand { font-size: 1.25rem; }
+  .topbar { padding-block: 10px 0; gap: 8px; }
+  .top-right { width: 100%; justify-content: space-between; }
+  .top-right .seg button { padding: 6px 10px; }
+  nav.tabs a { padding: 8px 10px; font-size: .95rem; }
+}
 .gear { color: var(--muted); text-decoration: none; font-size: .85rem; font-weight: 600; }
 .gear:hover { color: var(--fg); }
 .gate { max-width: 520px; margin: 40px auto; }
