@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-09T17:21:15.955Z",
+  "updated": "2026-11-09T19:36:50.009Z",
   "quotes": {
     "VUSA.L": {
       "price": 106.257,
@@ -14,6 +14,13 @@
       "currency": "GBp",
       "time": "2026-11-09T16:35:09.000Z",
       "name": "iShares Physical Gold ETC"
+    },
+    "VUAG.L": {
+      "price": 108.54,
+      "raw": 108.54,
+      "currency": "GBP",
+      "time": "2026-11-09T16:35:11.000Z",
+      "name": "Vanguard S&P 500 UCITS ETF USD Accumulation"
     }
   }
 }
