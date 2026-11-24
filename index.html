@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<meta name="build" content="2026-11-24b">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1946,6 +1947,19 @@ document.addEventListener("submit", async e => {
     TOKEN = token; tokenProblem = false; render(); toast("Access token replaced");
   } catch (err) { toast(err && err.code === "token" ? "GitHub didn't accept that token" : "Couldn't save the new token. Check its permissions."); }
 }, true);
+
+
+/* ---------- pick up new versions straight away (phones keep old copies otherwise) ---------- */
+async function checkForUpdate() {
+  try {
+    const r = await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" });
+    const m = (await r.text()).match(/<meta name="build" content="([^"]+)"/);
+    const mine = document.querySelector('meta[name="build"]').content;
+    if (m && m[1] !== mine && !ui.sheet) location.reload();
+  } catch (e) {}
+}
+checkForUpdate();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
 
 /* ---------- start ---------- */
 (async function boot() {
