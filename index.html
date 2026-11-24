@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-24e">
+<meta name="build" content="2026-11-24f">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -252,6 +252,11 @@ label.btn { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 .tile-val, .tile-note, .tile .meter { display: block; }
+.kpi-btn { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 20px; border-radius: 20px; }
+.kpi-btn > span { display: block; }
+.kpi-btn > .kpi-top { display: flex; }
+.kpi-btn:hover { border-color: #cfd5f7; background: #fff; }
+.kpi-btn .note { color: var(--blue); }
 .tile { align-items: stretch; justify-content: flex-start; }
 .tile.add { align-items: center; justify-content: center; }
 .preset { justify-content: flex-start; }
@@ -442,7 +447,11 @@ const ensureMonth = k => { if (!state.months[k]) state.months[k] = { income: { b
 const incomeOf = m => num(m.income.base) + num(m.income.op) + num(m.income.other);
 const giftSpent = (type, k) => state.gifts.filter(g => g.type === type && g.bought && g.bought.startsWith(k)).reduce((t, g) => t + num(g.spent), 0);
 const catSpend = (c, k) => c.linked ? giftSpent(c.linked, k) : num(monthData(k).spend[c.id]);
-const spendOf = k => state.categories.reduce((t, c) => t + catSpend(c, k), 0);
+const catTotal = k => state.categories.reduce((t, c) => t + catSpend(c, k), 0);
+const hasSpentTotal = m => !!m && m.spentTotal !== undefined && m.spentTotal !== null && m.spentTotal !== "";
+// "Spent" is the categories added up, unless a total for the whole month has been typed in
+const spendOf = k => { const m = state.months[k]; return hasSpentTotal(m) ? num(m.spentTotal) : catTotal(k); };
+const unsortedOf = k => Math.max(0, spendOf(k) - catTotal(k));
 const catColor = (c, i) => c.color || PALETTE[i % PALETTE.length];
 const potColor = i => POT_PALETTE[i % POT_PALETTE.length];
 const latestAt = (list, date) => { let v = 0, best = ""; (list || []).forEach(e => { if (e.date <= date && e.date >= best) { best = e.date; v = num(e.value); } }); return v; };
@@ -659,6 +668,7 @@ function viewOverview() {
 function drawOverview() {
   const k = monthKey(new Date());
   const cats = state.categories.map((c, i) => ({ c, v: catSpend(c, k), col: catColor(c, i) })).filter(x => x.v > 0);
+  if (unsortedOf(k) > 0) cats.push({ c: { name: "Not sorted" }, v: unsortedOf(k), col: "#c3c9dc" });
   pieChart("cSpendPie", cats.map(x => x.c.name), cats.map(x => x.v), cats.map(x => x.col));
   const w = wealthNow();
   const parts = [...Object.entries(TYPES).map(([t, d]) => [d.label, w.byType[t] || 0, d.color]), ...w.per.map(({ h, st }) => [h.short || h.name, st.value, h.color]), ["Cash to invest", w.cash, CASH_COL]].filter(p => p[1] > 0);
@@ -706,7 +716,7 @@ function viewMonth() {
   </div>
   <div class="grid g4">
     <div class="card kpi"><div class="kpi-top"><span class="label">Money in</span>${trendBadge(inc, incomeOf(pm))}</div><div class="value">${gbp0(inc)}</div></div>
-    <div class="card kpi"><div class="kpi-top"><span class="label">Spent</span>${trendBadge(sp, spendOf(pk), false)}</div><div class="value">${gbp0(sp)}</div><div class="note">${totalBudget ? "Limits add up to " + gbp0(totalBudget) : ""}</div></div>
+    <button type="button" class="card kpi kpi-btn" data-sheet="spent" id="kpiSpent"><span class="kpi-top"><span class="label">Spent</span>${trendBadge(sp, spendOf(pk), false)}</span><span class="value">${gbp0(sp)}</span><span class="note">${hasSpentTotal(m) ? "Typed in · tap to change" : "Tap to type your real total"}</span></button>
     <div class="card kpi"><div class="kpi-top"><span class="label">Saved / invested</span></div><div class="value">${gbp0(saved)}</div></div>
     <div class="card kpi"><div class="kpi-top"><span class="label">Left over</span></div><div class="value ${left >= 0 ? "pos" : "neg"}">${gbp0(left)}</div></div>
   </div>
@@ -726,6 +736,7 @@ function viewMonth() {
 }
 function drawMonth() {
   const cats = state.categories.map((c, i) => ({ c, v: catSpend(c, ui.month), col: catColor(c, i) })).filter(x => x.v > 0);
+  if (unsortedOf(ui.month) > 0) cats.push({ c: { name: "Not sorted" }, v: unsortedOf(ui.month), col: "#c3c9dc" });
   pieChart("cMonthPie", cats.map(x => x.c.name), cats.map(x => x.v), cats.map(x => x.col), "52%");
 }
 
@@ -1110,6 +1121,18 @@ function drawProgress() {
 }
 
 /* ----- pop-up boxes ("sheets") opened by tapping a tile ----- */
+document.addEventListener("submit", e => {
+  if (e.target.id !== "spentForm") return;
+  e.preventDefault(); e.stopPropagation();
+  const v = Math.max(0, num($("#spentAmt").value));
+  const m = ensureMonth(ui.month); m.spentTotal = +v.toFixed(2);
+  ui.sheet = null; save(); render(); toast("Spent set to " + gbp(v));
+}, true);
+document.addEventListener("click", e => {
+  const b = e.target.closest('[data-act="spent-auto"]'); if (!b) return;
+  const m = ensureMonth(ui.month); delete m.spentTotal;
+  ui.sheet = null; save(); render(); toast("Spent now adds up your categories");
+});
 document.addEventListener("click", e => { const b = e.target.closest("[data-catmode]"); if (!b) return; lsSet("hb-catmode", b.dataset.catmode); render(); const i = $("#totAmt") || $("#payAmt"); if (i) i.focus(); });
 document.addEventListener("submit", e => {
   if (e.target.id !== "totalForm") return;
@@ -1249,6 +1272,16 @@ function sheetHTML() {
         <label class="f">Planned to save<span class="money lg"><input id="inc-planned" data-planned="1" inputmode="decimal" value="${m.planned !== undefined && m.planned !== "" ? num(m.planned) : ""}" placeholder="${num(state.plan.monthly)}" autocomplete="off"></span></label>
       </div>
       ${pl ? `<p class="hint">${saved >= pl ? `<span class="pos">You hit your plan of ${gbp0(pl)}.</span>` : `${gbp0(pl - saved)} short of your plan of ${gbp0(pl)}.`} Leave "Planned" blank to use your usual ${gbp0(num(state.plan.monthly))} from the Progress tab.</p>` : ""}${done}`, ml);
+  }
+  if (type === "spent") {
+    const ct = catTotal(k), set = hasSpentTotal(m), cur = spendOf(k);
+    return sheetWrap('<span class="dot" style="background:#f2555a"></span>Spent', "Spent", `
+      <form id="spentForm" class="stack">
+        <label class="f">How much you've actually spent in ${ml}<span class="money lg"><input id="spentAmt" inputmode="decimal" value="${cur ? cur.toFixed(2) : ""}" placeholder="0.00" autocomplete="off"></span></label>
+        <button class="primary block" type="submit" id="btnSpent">Save</button>
+      </form>
+      <p class="hint">Check your banking app and type the real figure. Your categories add up to <b>${gbp(ct)}</b>${set && cur > ct ? `; the other <b>${gbp(cur - ct)}</b> shows as "Not sorted"` : ""}${set && cur < ct ? `, which is more than this total` : ""}.</p>
+      ${set ? `<button type="button" class="small ghost" data-act="spent-auto" id="btnSpentAuto">Go back to adding up my categories (${gbp(ct)})</button>` : ""}`, ml);
   }
   if (type === "newcat") {
     return sheetWrap("Add a category", "Add a category", `
@@ -1742,6 +1775,7 @@ function mergeStates() {
       om.income.base += num(m.income.base); om.income.op += num(m.income.op); om.income.other += num(m.income.other); om.saved += num(m.saved);
       s.categories.forEach(c => { if (m.spend[c.id] !== undefined) { const nc = cats.get(keyOf(c.name)); om.spend[nc.id] = num(om.spend[nc.id]) + num(m.spend[c.id]); } });
     });
+    if (ids.some(id => hasSpentTotal(P[id].months[k]))) { const keep = state; om.spentTotal = ids.reduce((t, id) => { state = P[id]; const v = spendOf(k); state = keep; return t + v; }, 0); }
     out.months[k] = om;
   });
   ids.forEach(id => {
