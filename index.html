@@ -7,189 +7,279 @@
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-/* Layout: sticky top bar with tabs, one view at a time; cards in a responsive grid. Single dark look by choice: deep green-black with green for money in, red for money out. */
+/* Layout: left sidebar on desktop (top bar + pill tabs on phones), white rounded cards on a pale blue-grey page, one blue accent. Tap-a-box tiles open a sheet with the details. */
 :root {
-  color-scheme: dark;
-  --bg: #0b1310;
-  --surface: #121d18;
-  --surface-2: #182620;
-  --line: #24362d;
-  --fg: #e4eee8;
-  --muted: #8ea79a;
-  --green: #3ec27f;
-  --green-dim: #1d4a33;
-  --red: #ef5b52;
-  --red-dim: #4a1f1d;
-  --amber: #e6a63c;
-  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+  --bg: #f3f5fb;
+  --surface: #ffffff;
+  --surface-2: #f4f6fc;
+  --line: #e7eaf3;
+  --fg: #0f1733;
+  --muted: #6b7391;
+  --blue: #4256f4;
+  --blue-2: #6070ff;
+  --blue-soft: #eef0ff;
+  --green: #0f9a58;
+  --green-dim: #e2f6eb;
+  --red: #e0434a;
+  --red-dim: #fdeced;
+  --amber: #b97400;
+  --amber-dim: #fff3d6;
+  --shadow: 0 1px 2px rgba(16,24,64,.04), 0 6px 20px rgba(16,24,64,.05);
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
-.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 0; flex-wrap: wrap; }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; }
-.brand span { color: var(--green); }
-.status { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-.status.ok .dot { background: var(--green); }
-.status.warn .dot { background: var(--amber); }
-nav.tabs { display: flex; gap: 4px; overflow-x: auto; padding-block: 8px 0; scrollbar-width: none; }
-nav.tabs a { color: var(--muted); text-decoration: none; padding: 8px 14px; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; letter-spacing: .04em; text-transform: uppercase; border-bottom: 3px solid transparent; white-space: nowrap; }
-nav.tabs a:hover { color: var(--fg); }
-nav.tabs a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--green); }
-main { padding-block: 20px 60px; }
-h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
-h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; letter-spacing: .05em; text-transform: uppercase; margin: 0 0 12px; color: var(--fg); }
-.sub { color: var(--muted); font-size: .9rem; margin: 2px 0 0; }
-.view-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+a { color: var(--blue); }
+
+/* ----- shell ----- */
+.shell { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: 100vh; }
+.side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: #fafbfe; border-right: 1px solid var(--line); padding: 22px 14px; display: flex; flex-direction: column; gap: 22px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.12rem; letter-spacing: -.01em; padding: 0 8px; }
+.brand .logo { width: 36px; height: 36px; border-radius: 11px; background: linear-gradient(135deg, var(--blue-2), var(--blue)); color: #fff; display: grid; place-items: center; font-weight: 800; box-shadow: 0 6px 14px rgba(66,86,244,.3); flex: none; }
+nav.tabs { display: flex; flex-direction: column; gap: 4px; }
+nav.tabs a, .gear { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; color: #3b4261; text-decoration: none; font-weight: 500; font-size: .95rem; }
+nav.tabs svg, .gear svg { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: #7a82a0; }
+nav.tabs a:hover, .gear:hover { background: #eef0f8; color: var(--fg); }
+nav.tabs a[aria-current="page"], .gear[aria-current="page"] { background: #fff; color: var(--fg); font-weight: 700; box-shadow: var(--shadow); }
+nav.tabs a[aria-current="page"] svg, .gear[aria-current="page"] svg { color: var(--blue); }
+.side-foot { margin-top: auto; }
+.main-col { min-width: 0; }
+header.top { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; padding: 18px 28px 0; }
+main { padding: 14px 28px 60px; max-width: 1280px; }
+@media (max-width: 900px) {
+  .shell { display: block; min-height: 0; }
+  .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 10px; border-right: none; border-bottom: 1px solid var(--line); }
+  .side-foot { margin: 0 0 0 auto; }
+  .gear { padding: 8px; }
+  .gear span { display: none; }
+  nav.tabs { order: 3; width: 100%; flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; margin: 0 -16px; padding: 0 16px; width: calc(100% + 32px); }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs a { white-space: nowrap; padding: 8px 14px; border-radius: 999px; background: #eef0f8; font-size: .9rem; }
+  nav.tabs svg { display: none; }
+  nav.tabs a[aria-current="page"] { background: var(--blue); color: #fff; box-shadow: none; }
+  header.top { padding: 12px 16px 0; justify-content: space-between; }
+  main { padding: 12px 16px 60px; }
+}
+
+/* ----- type ----- */
+h2 { font-weight: 800; font-size: 1.65rem; letter-spacing: -.025em; margin: 0; text-wrap: balance; line-height: 1.2; }
+h3 { font-weight: 700; font-size: 1.02rem; margin: 0 0 14px; letter-spacing: -.01em; }
+h4 { font-weight: 700; font-size: .95rem; margin: 0 0 10px; }
+.sub { color: var(--muted); font-size: .92rem; margin: 4px 0 0; }
+.view-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 28px 0 12px; }
+.section-head h3 { margin: 0; font-size: 1.15rem; }
+.hint { font-size: .84rem; color: var(--muted); }
+.pos { color: var(--green); } .neg { color: var(--red); } .warn-t { color: var(--amber); }
+
+/* ----- grids & cards ----- */
 .grid { display: grid; gap: 16px; }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .span2 { grid-column: span 2; }
-@media (max-width: 900px) { .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); } .g3 { grid-template-columns: minmax(0,1fr); } }
-@media (max-width: 720px) { .g2 { grid-template-columns: minmax(0,1fr); } .span2 { grid-column: auto; } }
-@media (max-width: 420px) { .g4 { grid-template-columns: minmax(0,1fr); } }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
-.kpi .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-.kpi .value { font-family: var(--font-display); font-weight: 700; font-size: 2.1rem; line-height: 1.1; font-variant-numeric: tabular-nums; margin-top: 4px; }
-.kpi .note { font-size: .82rem; color: var(--muted); margin-top: 4px; }
-.pos { color: var(--green); } .neg { color: var(--red); } .warn-t { color: var(--amber); }
+@media (max-width: 1100px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .g3 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .g2 { grid-template-columns: minmax(0, 1fr); } .span2 { grid-column: auto; } }
+@media (max-width: 420px) { .grid.g4 { gap: 10px; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; min-width: 0; box-shadow: var(--shadow); }
+.kpi { position: relative; overflow: hidden; }
+.kpi-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.kpi .label { font-weight: 600; font-size: .95rem; color: var(--fg); }
+.kpi .value { font-weight: 800; font-size: 2rem; letter-spacing: -.03em; line-height: 1.1; margin-top: 10px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kpi .note { font-size: .85rem; color: var(--muted); margin-top: 6px; }
+@media (max-width: 420px) { .card { padding: 16px; } .kpi .value { font-size: 1.55rem; } .kpi .label { font-size: .85rem; } }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: .76rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex: none; }
+.badge.up { background: var(--green-dim); color: var(--green); }
+.badge.down { background: var(--red-dim); color: var(--red); }
+.badge.flat { background: #eef0f7; color: var(--muted); }
+.badge.blue { background: var(--blue-soft); color: var(--blue); }
+.sparkw { position: relative; margin: 14px -20px -20px; height: 54px; }
+.sparkw svg { display: block; width: 100%; height: 100%; }
+.sparkw i { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid #fff; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px rgba(66,86,244,.25); }
+@media (max-width: 420px) { .sparkw { margin: 10px -16px -16px; height: 40px; } }
+
+/* hero */
+.hero { position: relative; overflow: hidden; border-radius: 24px; padding: 24px 26px; color: #fff; background: radial-gradient(120% 140% at 100% 0%, #7584ff 0%, rgba(117,132,255,0) 55%), linear-gradient(135deg, #4a5cf6, #3443dc); box-shadow: 0 14px 30px rgba(66,86,244,.28); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: end; }
+.hero .label { font-weight: 600; opacity: .85; }
+.hero .big { font-size: 2.9rem; font-weight: 800; letter-spacing: -.035em; line-height: 1.05; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.hero .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.hero .chip { background: rgba(255,255,255,.16); border-radius: 999px; padding: 5px 12px; font-size: .84rem; font-weight: 600; color: #fff; text-decoration: none; }
+.hero a.chip:hover { background: rgba(255,255,255,.26); }
+.hero .sparkw { margin: 0; height: 110px; }
+.hero .sparkw i { background: #fff; border-color: #4a5cf6; box-shadow: 0 0 0 4px rgba(255,255,255,.25); }
+@media (max-width: 720px) { .hero { grid-template-columns: minmax(0, 1fr); padding: 20px; } .hero .big { font-size: 2.3rem; } .hero .sparkw { height: 70px; } }
+
+/* tap-a-box tiles */
+.tiles { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.tile { text-align: left; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 16px 14px; box-shadow: var(--shadow); cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; transition: transform .12s, box-shadow .12s, border-color .12s; }
+.tile:hover { border-color: #cfd5f7; background: #fff; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(16,24,64,.05), 0 12px 28px rgba(16,24,64,.08); }
+.tile-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.tile-name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.tile-name .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
+.tile-val { font-weight: 800; font-size: 1.5rem; letter-spacing: -.025em; font-variant-numeric: tabular-nums; margin-top: 8px; line-height: 1.2; }
+.tile-note { font-size: .83rem; color: var(--muted); }
+.tile .meter { margin: 10px 0 0; height: 6px; }
+.tile.add { border: 1.5px dashed #c6cce6; background: transparent; box-shadow: none; align-items: center; justify-content: center; gap: 8px; color: var(--blue); font-weight: 700; min-height: 116px; }
+.tile.add:hover { background: var(--blue-soft); border-color: var(--blue); }
+.tile.add .plus { width: 36px; height: 36px; border-radius: 50%; background: var(--blue-soft); display: grid; place-items: center; font-size: 1.35rem; line-height: 1; }
+@media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .tile { padding: 13px 12px 12px; border-radius: 16px; } .tile-val { font-size: 1.22rem; } .tile-name { font-size: .9rem; } .tile .badge { padding: 2px 7px; font-size: .7rem; } }
+
+/* sheets (pop-up boxes) */
+.sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(15,23,51,.38); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.sheet { background: #fff; border-radius: 24px; width: min(580px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 22px; box-shadow: 0 30px 80px rgba(15,23,51,.28); overscroll-behavior: contain; }
+.sheet.anim { animation: pop .16s ease-out; }
+.sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.sheet-head h3 { margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; }
+.sheet .close { border: none; background: #eef0f7; width: 38px; height: 38px; border-radius: 50%; font-size: 1.3rem; line-height: 1; padding: 0; flex: none; color: var(--fg); box-shadow: none; }
+.sheet-big { font-size: 2.4rem; font-weight: 800; letter-spacing: -.035em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.sheet-sec { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 16px; }
+.sheet-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+@media (max-width: 640px) {
+  .sheet-bg { align-items: flex-end; padding: 0; }
+  .sheet { border-radius: 24px 24px 0 0; max-height: 92vh; padding: 18px 16px calc(22px + env(safe-area-inset-bottom, 0px)); }
+  .sheet.anim { animation: up .2s ease-out; }
+  .sheet-big { font-size: 2rem; }
+}
+@keyframes pop { from { transform: scale(.97); opacity: 0; } }
+@keyframes up { from { transform: translateY(40px); opacity: 0; } }
+body.sheet-open { overflow: hidden; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn { border-radius: 999px; padding: 6px 12px; font-size: .84rem; background: var(--blue-soft); color: var(--blue); border: none; box-shadow: none; }
+.chip-btn:hover { background: #e0e4ff; }
+.preset { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 14px; }
+.preset b { display: block; }
+.preset small { color: var(--muted); font-weight: 500; }
+
+/* ----- controls ----- */
+button, .btn { font: inherit; font-weight: 600; font-size: .9rem; border-radius: 12px; border: 1px solid var(--line); background: #fff; color: var(--fg); padding: 9px 16px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+button:hover, .btn:hover { border-color: #c9cfe6; background: #fafbff; }
+button:disabled { opacity: .6; cursor: default; }
+button.primary { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: 0 4px 12px rgba(66,86,244,.25); }
+button.primary:hover { background: #3647e6; border-color: #3647e6; }
+button.danger { color: var(--red); }
+button.ghost { background: transparent; border-color: transparent; }
+button.small { padding: 6px 12px; font-size: .82rem; border-radius: 10px; }
+button.block { width: 100%; padding: 12px 16px; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+input, select { font: inherit; color: var(--fg); background: #fff; border: 1px solid #dde1ee; border-radius: 12px; padding: 10px 12px; min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
+input:hover, select:hover { border-color: #c3c9de; }
+input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(66,86,244,.14); outline: none; }
+input:disabled, select:disabled { background: var(--surface-2); color: var(--muted); }
+label.f { display: grid; gap: 6px; font-size: .82rem; color: var(--muted); font-weight: 600; min-width: 0; }
+.money { position: relative; display: block; }
+.money::before { content: "£"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.money input { padding-left: 26px; }
+.money.lg::before { font-size: 1.25rem; left: 14px; font-weight: 600; }
+.money.lg input { font-size: 1.35rem; font-weight: 700; padding: 11px 14px 11px 32px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.row > * { flex: 1 1 140px; }
+.row > button { flex: 0 0 auto; }
+.stack { display: grid; gap: 12px; }
+.check { display: flex; align-items: center; gap: 10px; font-size: .9rem; color: var(--fg); }
+.check input { width: 18px; height: 18px; accent-color: var(--blue); flex: none; }
+.ro { opacity: .75; cursor: not-allowed; }
+.month-nav { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 4px; box-shadow: var(--shadow); }
+.month-nav .m { font-weight: 800; font-size: 1.1rem; min-width: 150px; text-align: center; letter-spacing: -.01em; }
+.month-nav button { border: none; box-shadow: none; padding: 8px 12px; }
+.seg { display: inline-flex; background: #e9ecf6; border-radius: 12px; padding: 4px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: none; background: transparent; color: var(--muted); padding: 6px 14px; border-radius: 9px; box-shadow: none; font-weight: 600; }
+.seg button:hover { background: rgba(255,255,255,.6); }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--fg); box-shadow: 0 1px 3px rgba(16,24,64,.12); }
+.status { font-size: .82rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status .dot { width: 8px; height: 8px; }
+.status .dot { background: var(--muted); }
+.status.ok .dot { background: #19b46b; }
+.status.warn .dot { background: #f0a020; }
+.x { background: none; border: none; color: var(--muted); padding: 2px 8px; font-size: 1.05rem; cursor: pointer; box-shadow: none; }
+.x:hover { color: var(--red); background: var(--red-dim); }
+.x.confirm, button.confirm { color: var(--red); font-size: .75rem; font-weight: 700; }
+
+/* ----- tables, pills, meters ----- */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .9rem; }
+th { text-align: left; font-size: .75rem; color: var(--muted); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 8px; border-bottom: 1px solid #f0f2f8; white-space: nowrap; }
+td.wrap-t { white-space: normal; }
+td.r, th.r { text-align: right; }
+tr.muted td { color: #a2a8bf; }
+.scroll-y { max-height: 320px; overflow-y: auto; }
+.pill { display: inline-block; font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.pill.g { background: var(--green-dim); color: var(--green); }
+.pill.r { background: var(--red-dim); color: var(--red); }
+.pill.a { background: var(--amber-dim); color: var(--amber); }
+.pill.b { background: var(--blue-soft); color: var(--blue); }
+.pill.n { background: #eef0f7; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.meter { height: 8px; border-radius: 999px; background: #edf0f7; overflow: hidden; margin: 8px 0 4px; }
+.meter i { display: block; height: 100%; background: var(--blue); border-radius: 999px; }
+.meter.warn i { background: #f0a020; }
+.meter.over i { background: var(--red); }
 .chart-box { position: relative; height: 260px; }
 .chart-box.tall { height: 320px; }
 .chart-box.short { height: 220px; }
-.banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--surface-2); border: 1px dashed var(--amber); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: .9rem; }
+.banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--amber-dim); border: 1px solid #f6dc9c; border-radius: 16px; padding: 12px 16px; margin-bottom: 16px; font-size: .9rem; }
 .banner b { color: var(--amber); }
-button, .btn { font: inherit; font-weight: 600; font-size: .9rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); padding: 8px 14px; cursor: pointer; }
-button:hover { border-color: var(--muted); }
-button.primary { background: var(--green); border-color: var(--green); color: #06130c; }
-button.primary:hover { filter: brightness(1.1); }
-button.danger { color: var(--red); }
-button.ghost { background: transparent; }
-button.small { padding: 4px 10px; font-size: .8rem; }
-button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
-input:hover, select:hover { border-color: var(--muted); }
-label.f { display: grid; gap: 4px; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; min-width: 0; }
-.money { position: relative; }
-.money::before { content: "£"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
-.money input { padding-left: 22px; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-.row > * { flex: 1 1 120px; }
-.row > button { flex: 0 0 auto; }
-.month-nav { display: flex; align-items: center; gap: 8px; }
-.month-nav .m { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; min-width: 150px; text-align: center; text-transform: uppercase; letter-spacing: .03em; }
-.cat-list { display: grid; gap: 10px; }
-.cat { display: grid; grid-template-columns: 14px minmax(0, 1.4fr) minmax(90px, 1fr) minmax(90px, 1fr) 28px; gap: 10px; align-items: center; }
-.cat .sw { width: 12px; height: 12px; border-radius: 3px; }
-.cat .name { font-weight: 600; overflow-wrap: anywhere; }
-.cat .name small { display: block; color: var(--muted); font-weight: 400; font-size: .78rem; }
-.cat .bar { grid-column: 2 / 5; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin-top: -4px; }
-.cat .bar i { display: block; height: 100%; background: var(--green); border-radius: 3px; }
-.cat .bar.warn i { background: var(--amber); }
-.cat .bar.over i { background: var(--red); }
-.cat-head { display: grid; grid-template-columns: 14px minmax(0, 1.4fr) minmax(90px, 1fr) minmax(90px, 1fr) 28px; gap: 10px; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-@media (max-width: 520px) {
-  .cat, .cat-head { grid-template-columns: 12px minmax(0,1fr) 88px 80px 24px; gap: 6px; }
-}
-.x { background: none; border: none; color: var(--muted); padding: 2px 6px; font-size: 1rem; cursor: pointer; }
-.x:hover { color: var(--red); }
-.x.confirm { color: var(--red); font-size: .72rem; font-weight: 700; }
-.tbl-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .9rem; }
-th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-td { padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-td.r, th.r { text-align: right; }
-.scroll-y { max-height: 320px; overflow-y: auto; }
-.pill { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
-.pill.g { background: var(--green-dim); color: var(--green); }
-.pill.r { background: var(--red-dim); color: var(--red); }
-.pill.a { background: #4a3a1a; color: var(--amber); }
-.meter { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; margin: 8px 0 4px; }
-.meter i { display: block; height: 100%; background: var(--green); }
-.meter.over i { background: var(--red); }
 .legend-list { display: grid; gap: 6px; margin-top: 10px; font-size: .85rem; }
-.legend-list div { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-.legend-list span.k { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.legend-list .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
-.legend-list b { font-variant-numeric: tabular-nums; font-weight: 600; }
 .disclaimer { font-size: .8rem; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; margin-top: 12px; }
-.ring { display: flex; align-items: center; gap: 16px; }
+.ring { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .ring svg { flex: none; }
 .empty { color: var(--muted); font-size: .9rem; padding: 20px 0; text-align: center; }
-.stack { display: grid; gap: 12px; }
-.hint { font-size: .82rem; color: var(--muted); }
 .range-row { display: flex; align-items: center; gap: 10px; }
-.range-row input[type=range] { padding: 0; accent-color: var(--green); border: none; background: transparent; }
-.range-row output { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 64px; text-align: right; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { border: none; border-radius: 0; background: transparent; color: var(--muted); padding: 6px 12px; }
-.seg button[aria-pressed="true"] { background: var(--green-dim); color: var(--green); }
-.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.pill.b { background: #1b3346; color: #6db8ea; }
-.pill.n { background: var(--surface-2); color: var(--muted); }
+.range-row input[type=range] { padding: 0; accent-color: var(--blue); border: none; background: transparent; box-shadow: none; }
+.range-row output { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 64px; text-align: right; color: var(--fg); }
 .pot-facts { display: grid; gap: 2px; margin-top: 10px; font-size: .88rem; }
 .pot-facts b { font-variant-numeric: tabular-nums; }
-details.more { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
-details.more summary { cursor: pointer; color: var(--muted); font-size: .85rem; font-weight: 600; }
+details.more { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+details.more summary { cursor: pointer; color: var(--muted); font-size: .88rem; font-weight: 600; }
 details.more summary:hover { color: var(--fg); }
-details.more[open] summary { margin-bottom: 10px; }
-.check { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--fg); }
-.check input { width: auto; accent-color: var(--green); }
-.ro { opacity: .75; cursor: not-allowed; }
-.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--line); padding: 8px 16px; border-radius: 8px; font-size: .88rem; z-index: 20; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-body { margin: 0; }
-img { max-width: 100%; }
-[hidden] { display: none !important; }
-.top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-/* Phones: the header scrolls away with the page instead of covering it */
-@media (max-width: 720px) {
-  header.top { position: static; }
-  .brand { font-size: 1.25rem; }
-  .topbar { padding-block: 10px 0; gap: 8px; }
-  .top-right { width: 100%; justify-content: space-between; }
-  .top-right .seg button { padding: 6px 10px; }
-  nav.tabs a { padding: 8px 10px; font-size: .95rem; }
-}
-.gear { color: var(--muted); text-decoration: none; font-size: .85rem; font-weight: 600; }
-.gear:hover { color: var(--fg); }
+details.more[open] summary { margin-bottom: 12px; }
+.toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: #fff; padding: 10px 18px; border-radius: 12px; font-size: .9rem; font-weight: 600; z-index: 60; box-shadow: 0 10px 30px rgba(15,23,51,.25); max-width: calc(100% - 32px); }
 .gate { max-width: 520px; margin: 40px auto; }
-.who-note { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: .9rem; }
-.ro-mode main form, .ro-mode main details.more, .ro-mode main .x, .ro-mode main [data-act], .ro-mode main [data-live], .ro-mode main [data-repeat], .ro-mode main .hint.live-hint { display: none !important; }
-label.btn { display: inline-flex; align-items: center; cursor: pointer; }
+.who-note { background: var(--blue-soft); color: #33408f; border-radius: 14px; padding: 10px 14px; margin-bottom: 16px; font-size: .88rem; }
+.ro-mode main form, .ro-mode main details.more, .ro-mode main .x, .ro-mode main [data-act], .ro-mode main [data-live], .ro-mode main [data-repeat], .ro-mode main .tile.add, .ro-mode main .hint.live-hint { display: none !important; }
+label.btn { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.tile-val, .tile-note, .tile .meter { display: block; }
+.tile { align-items: stretch; justify-content: flex-start; }
+.tile.add { align-items: center; justify-content: center; }
+.preset { justify-content: flex-start; }
+.tile-top { display: flex; }
 </style>
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap">
-    <div class="topbar">
-      <div class="brand">Pay <span>&amp;</span> Savings</div>
-      <div class="top-right">
-        <div class="seg" id="whoSeg" role="group" aria-label="Whose money" hidden></div>
-        <a href="#settings" class="gear" id="gearLink" hidden>Settings</a>
-        <div class="status" id="status"><span class="dot"></span><span id="statusText">Loading…</span></div>
-      </div>
-    </div>
-    <nav class="tabs" id="tabs" aria-label="Sections">
-      <a href="#overview" data-view="overview">Overview</a>
-      <a href="#month" data-view="month">Monthly</a>
-      <a href="#wealth" data-view="wealth">Savings &amp; Bonds</a>
-      <a href="#sp500" data-view="sp500">S&amp;P &amp; Gold</a>
-      <a href="#gifts" data-view="gifts">Presents</a>
-      <a href="#progress" data-view="progress">Progress</a>
-    </nav>
-  </div>
-</header>
-<main class="wrap" id="app"></main>
+<div class="shell">
+<aside class="side">
+  <div class="brand"><span class="logo">£</span>Pay &amp; Savings</div>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <a href="#overview" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Overview</a>
+    <a href="#month" data-view="month"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Monthly</a>
+    <a href="#sp500" data-view="sp500"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Investments</a>
+    <a href="#wealth" data-view="wealth"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18"/></svg>Savings &amp; Bonds</a>
+    <a href="#gifts" data-view="gifts"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 13h18M12 8c-1.5-3.5-6-4-6-1.5S12 8 12 8zm0 0c1.5-3.5 6-4 6-1.5S12 8 12 8z"/></svg>Presents</a>
+    <a href="#progress" data-view="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>Progress</a>
+  </nav>
+  <div class="side-foot"><a href="#settings" class="gear" id="gearLink" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></a></div>
+</aside>
+<div class="main-col">
+  <header class="top">
+    <div class="seg" id="whoSeg" role="group" aria-label="Whose money" hidden></div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Loading…</span></div>
+  </header>
+  <main id="app"></main>
+</div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -216,16 +306,16 @@ const shortDate = s => { const [y, m, d] = s.split("-").map(Number); return d + 
 const addMonthsISO = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); return isoDate(new Date(y, m - 1 + n, d)); };
 const daysUntil = iso => { const a = new Date(todayISO() + "T00:00:00"), b = new Date(iso + "T00:00:00"); return Math.round((b - a) / 864e5); };
 const monthsBetween = (fromIso, toIso) => { const [y1, m1] = fromIso.split("-").map(Number), [y2, m2] = toIso.split("-").map(Number); return (y2 - y1) * 12 + (m2 - m1); };
-const PALETTE = ["#3ec27f","#ef5b52","#e6a63c","#4fa3d9","#b07fe0","#2fc4b2","#f07a9a","#9cc34a","#d98a4f","#7c8cf0","#c9b458","#5fd4e6","#e07fc8","#8fbf9f"];
-const POT_PALETTE = ["#3ec27f","#9cc34a","#4fa3d9","#b07fe0","#2fc4b2","#7c8cf0","#d98a4f","#e07fc8","#c9b458"];
+const PALETTE = ["#4256f4","#f2555a","#f5a524","#16b47e","#8b5cf6","#0ea5c6","#ec4899","#84cc16","#f97316","#6366f1","#ca8a04","#14b8a6","#d946ef","#64748b"];
+const POT_PALETTE = ["#16b47e","#9cc34a","#4fa3d9","#b07fe0","#2fc4b2","#7c8cf0","#d98a4f","#e07fc8","#c9b458"];
 const TYPES = {
-  savings: { label: "Savings", color: "#3ec27f" },
+  savings: { label: "Savings", color: "#16b47e" },
   regular: { label: "Regular saver", color: "#9cc34a" },
   bonds: { label: "Bonds", color: "#4fa3d9" },
   other: { label: "Other investments", color: "#b07fe0" }
 };
 const PLAN_DEFAULT = () => ({ monthly: 700, start: shiftMonth(monthKey(new Date()), -5), startValue: "", growth: 4 });
-const CASH_COL = "#5fd4e6";
+const CASH_COL = "#0ea5c6";
 const HOLD_PALETTE = ["#f08a4b", "#f5d061", "#e07fc8", "#7c8cf0", "#2fc4b2", "#c9b458"];
 const sglnBlank = () => ({ id: "sgln", name: "iShares Physical Gold (SGLN)", short: "Gold (SGLN)", ticker: "SGLN.L", color: "#f5d061", buys: [], currentPrice: 0, priceDate: todayISO() });
 
@@ -356,8 +446,14 @@ const catColor = (c, i) => c.color || PALETTE[i % PALETTE.length];
 const potColor = i => POT_PALETTE[i % POT_PALETTE.length];
 const latestAt = (list, date) => { let v = 0, best = ""; (list || []).forEach(e => { if (e.date <= date && e.date >= best) { best = e.date; v = num(e.value); } }); return v; };
 const endFor = k => k === monthKey(new Date()) ? todayISO() : monthEnd(k);
+function latestSnap(h, upTo) {
+  return h.buys.filter(b => b.opening && (!upTo || b.date <= upTo)).sort((a, b) => a.date.localeCompare(b.date) || (a.at || 0) - (b.at || 0)).pop() || null;
+}
 function holdStats(h, upTo) {
-  const buys = [...h.buys].filter(b => !upTo || b.date <= upTo).sort((a, b) => a.date.localeCompare(b.date));
+  const snap = latestSnap(h, upTo);
+  const after = b => b.date > snap.date || (b.date === snap.date && (b.at || 0) > (snap.at || 0));
+  const buys = h.buys.filter(b => (!upTo || b.date <= upTo) && (!snap || b === snap || (!b.opening && after(b))))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.at || 0) - (b.at || 0));
   let shares = 0, paid = 0, lastPrice = 0;
   buys.forEach(b => { if (num(b.price) > 0) { shares += num(b.amount) / num(b.price); lastPrice = num(b.price); } paid += num(b.amount); });
   const price = num(h.currentPrice) || lastPrice;
@@ -440,13 +536,13 @@ const slicePct = {
     if (!total) return;
     const ctx = chart.ctx; ctx.save();
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "700 12px Barlow, system-ui, sans-serif";
+    ctx.font = "700 12px Inter, system-ui, sans-serif";
     meta.data.forEach((arc, i) => {
       if (!chart.getDataVisibility(i)) return;
       const p = ds.data[i] / total * 100;
       if (p < 4) return;
       const pos = arc.tooltipPosition();
-      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(6,19,12,.55)"; ctx.fillStyle = "#ffffff";
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(15,23,51,.35)"; ctx.fillStyle = "#ffffff";
       const t = Math.round(p) + "%";
       ctx.strokeText(t, pos.x, pos.y); ctx.fillText(t, pos.x, pos.y);
     });
@@ -455,17 +551,19 @@ const slicePct = {
 };
 if (window.Chart) {
   Chart.register(slicePct);
-  Chart.defaults.color = "#8ea79a";
-  Chart.defaults.borderColor = "#24362d";
-  Chart.defaults.font.family = 'Barlow, system-ui, sans-serif';
+  Chart.defaults.color = "#8a91ab";
+  Chart.defaults.borderColor = "#eceff6";
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
   Chart.defaults.font.size = 12;
   Chart.defaults.plugins.legend.labels.boxWidth = 10;
   Chart.defaults.plugins.legend.labels.boxHeight = 10;
-  Chart.defaults.plugins.tooltip.backgroundColor = "#182620";
-  Chart.defaults.plugins.tooltip.borderColor = "#24362d";
+  Chart.defaults.plugins.tooltip.backgroundColor = "#0f1733";
+  Chart.defaults.plugins.tooltip.borderColor = "#0f1733";
+  Chart.defaults.plugins.tooltip.cornerRadius = 10;
+  Chart.defaults.plugins.tooltip.padding = 10;
   Chart.defaults.plugins.tooltip.borderWidth = 1;
-  Chart.defaults.plugins.tooltip.titleColor = "#e4eee8";
-  Chart.defaults.plugins.tooltip.bodyColor = "#e4eee8";
+  Chart.defaults.plugins.tooltip.titleColor = "#ffffff";
+  Chart.defaults.plugins.tooltip.bodyColor = "#ffffff";
   Chart.defaults.maintainAspectRatio = false;
   Chart.defaults.animation.duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 400;
 }
@@ -485,7 +583,7 @@ const pctLegend = {
   }
 };
 function pieChart(id, labels, values, colors, cutout) {
-  return mkChart(id, { type: cutout ? "doughnut" : "pie", data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: "#121d18", borderWidth: 2 }] }, options: { cutout: cutout || 0, plugins: { legend: pctLegend, tooltip: pieTip } } });
+  return mkChart(id, { type: cutout ? "doughnut" : "pie", data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: "#ffffff", borderWidth: 2 }] }, options: { cutout: cutout || 0, plugins: { legend: pctLegend, tooltip: pieTip } } });
 }
 
 /* ---------- views ---------- */
@@ -495,40 +593,76 @@ function exampleBanner() {
   <span class="row" style="flex:0 0 auto"><button class="small" data-act="clear-example" id="btnClear">Clear and start fresh</button></span></div>`;
 }
 
+// Small trend line for the bottom of a card. Returns "" when there's nothing to draw.
+function spark(vals, color = "#4256f4", white = false) {
+  const v = vals.map(x => num(x));
+  if (v.length < 2 || v.every(x => !x)) return "";
+  const W = 300, H = 60, pt = 8, pb = 4;
+  const mn = Math.min(...v), mx = Math.max(...v), r = mx - mn || 1;
+  const pts = v.map((x, i) => [W * i / (v.length - 1), pt + (H - pt - pb) * (1 - (x - mn) / r)]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const last = pts[pts.length - 1];
+  const fill = white ? "rgba(255,255,255,.16)" : "rgba(66,86,244,.08)";
+  return `<div class="sparkw" aria-hidden="true"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d} L${W} ${H} L0 ${H}Z" fill="${fill}"/><path d="${d}" fill="none" stroke="${white ? "#fff" : color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg><i style="left:calc(100% - 7px);top:${(last[1] / H * 100).toFixed(1)}%"></i></div>`;
+}
+// "▲ Up" / "▼ Down" pill. upGood=false for spending, where going up is bad.
+function trendBadge(cur, prev, upGood = true) {
+  if (!cur && !prev) return "";
+  const d = cur - prev;
+  if (Math.abs(d) < 0.5) return '<span class="badge flat">Same</span>';
+  return `<span class="badge ${(d > 0) === upGood ? "up" : "down"}">${d > 0 ? "▲ Up" : "▼ Down"}</span>`;
+}
+const lastMonths = (n, end = monthKey(new Date())) => Array.from({ length: n }, (_, i) => shiftMonth(end, i - n + 1));
+
 function viewOverview() {
-  const k = monthKey(new Date());
-  const m = monthData(k);
+  const k = monthKey(new Date()), pk = shiftMonth(k, -1);
+  const m = monthData(k), pm = monthData(pk);
   const inc = incomeOf(m), sp = spendOf(k), saved = num(m.saved), left = inc - sp - saved;
+  const pLeft = incomeOf(pm) - spendOf(pk) - num(pm.saved);
   const w = wealthNow();
   const keys = allMonthKeys();
   const prevNW = keys.length > 1 ? netWorthAt(keys[keys.length - 2]) : 0;
   const nwChange = w.total - prevNW;
   const interest = state.pots.reduce((t, p) => t + potInfo(p).yearly, 0) + w.cash * num(state.sp.cash.rate) / 100;
+  const ps = planSeries(); const ahead = ps.act[ps.act.length - 1] - ps.exp[ps.exp.length - 1];
   let opTotal = 0, opMonths = 0, opSaved = 0;
   Object.values(state.months).forEach(mm => { const o = num(mm.income.op); if (o > 0) { opTotal += o; opMonths++; opSaved += num(mm.saved); } });
   const opPct = opTotal ? Math.min(100, opSaved / opTotal * 100) : 0;
+  const L = lastMonths(8);
+  const inParts = [["Base", num(m.income.base)], ["Op", num(m.income.op)], ["Extra", num(m.income.other)]].filter(x => x[1]).map(x => x[0] + " " + gbp0(x[1])).join(" · ");
 
   return `${exampleBanner()}
   <div class="view-head"><div><h2>${monthLabel(k, true)}</h2><p class="sub">Where you stand this month and overall.</p></div>
-  <button data-go="month" id="btnGoMonth">Update this month</button></div>
-  <div class="grid g4">
-    <div class="card kpi"><div class="label">Net worth</div><div class="value">${gbp0(w.total)}</div><div class="note ${nwChange >= 0 ? "pos" : "neg"}">${nwChange >= 0 ? "▲" : "▼"} ${gbp0(Math.abs(nwChange))} since last month</div>${(() => { const ps = planSeries(); const d = ps.act[ps.act.length - 1] - ps.exp[ps.exp.length - 1]; return `<div class="note"><a href="#progress" class="${d >= 0 ? "pos" : "neg"}">${gbp0(Math.abs(d))} ${d >= 0 ? "ahead of" : "behind"} plan</a></div>`; })()}</div>
-    <div class="card kpi"><div class="label">Income this month</div><div class="value pos">${gbp0(inc)}</div><div class="note">${num(m.income.op) ? "Includes " + gbp0(num(m.income.op)) + " Op pay" : "Base pay " + gbp0(num(m.income.base))}</div></div>
-    <div class="card kpi"><div class="label">Spending this month</div><div class="value neg">${gbp0(sp)}</div><div class="note">${inc ? (sp / inc * 100).toFixed(0) + "% of income" : "No income entered yet"}</div></div>
-    <div class="card kpi"><div class="label">Left over</div><div class="value ${left >= 0 ? "pos" : "neg"}">${gbp0(left)}</div><div class="note">After ${gbp0(saved)} saved or invested</div></div>
+  <button class="primary" data-go="month" id="btnGoMonth">Log spending</button></div>
+  <div class="hero">
+    <div>
+      <div class="label">Net worth</div>
+      <div class="big">${gbp0(w.total)}</div>
+      <div class="chips">
+        <span class="chip">${nwChange >= 0 ? "▲" : "▼"} ${gbp0(Math.abs(nwChange))} since last month</span>
+        <a class="chip" href="#progress">${gbp0(Math.abs(ahead))} ${ahead >= 0 ? "ahead of" : "behind"} plan</a>
+        ${interest ? `<span class="chip">Earning ${gbp0(interest)} a year interest</span>` : ""}
+      </div>
+    </div>
+    ${spark(keys.slice(-12).map(netWorthAt), "#fff", true)}
+  </div>
+  <div class="grid g4" style="margin-top:16px">
+    <div class="card kpi"><div class="kpi-top"><span class="label">Money in</span>${trendBadge(inc, incomeOf(pm))}</div><div class="value">${gbp0(inc)}</div><div class="note">${inParts || "Nothing entered yet"}</div>${spark(L.map(x => incomeOf(monthData(x))))}</div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Spent</span>${trendBadge(sp, spendOf(pk), false)}</div><div class="value">${gbp0(sp)}</div><div class="note">${inc ? (sp / inc * 100).toFixed(0) + "% of money in" : "This month so far"}</div>${spark(L.map(spendOf))}</div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Saved / invested</span>${trendBadge(saved, num(pm.saved))}</div><div class="value">${gbp0(saved)}</div><div class="note">${plannedFor(k) ? (saved >= plannedFor(k) ? "Plan hit" : gbp0(plannedFor(k) - saved) + " to hit your plan") : "This month"}</div>${spark(L.map(x => num(monthData(x).saved)))}</div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Left over</span>${trendBadge(left, pLeft)}</div><div class="value ${left >= 0 ? "" : "neg"}">${gbp0(left)}</div><div class="note">After spending and saving</div>${spark(L.map(x => { const mm = monthData(x); return incomeOf(mm) - spendOf(x) - num(mm.saved); }))}</div>
   </div>
   <div class="grid g2" style="margin-top:16px">
-    <div class="card"><h3>Where this month's money went</h3>${sp ? '<div class="chart-box"><canvas id="cSpendPie" aria-label="Spending by category this month"></canvas></div>' : '<div class="empty">No spending entered for this month yet.</div>'}</div>
-    <div class="card"><h3>What you've got</h3>${w.total ? '<div class="chart-box"><canvas id="cWealthPie" aria-label="Wealth split"></canvas></div>' : '<div class="empty">Add pots on the Savings &amp; Bonds tab.</div>'}
-      ${interest ? `<p class="hint" style="margin:8px 0 0">Your money earns about <b class="pos">${gbp0(interest)} a year</b> in interest (${gbp(interest / 12)} a month).</p>` : ""}</div>
+    <div class="card"><h3>Where this month's money went</h3>${sp ? '<div class="chart-box"><canvas id="cSpendPie" aria-label="Spending by category this month"></canvas></div>' : '<div class="empty">No spending logged this month yet.</div>'}</div>
+    <div class="card"><h3>What you've got</h3>${w.total ? '<div class="chart-box"><canvas id="cWealthPie" aria-label="Wealth split"></canvas></div>' : '<div class="empty">Add your savings and investments to see them here.</div>'}</div>
     <div class="card span2"><h3>Net worth over time</h3><div class="chart-box"><canvas id="cNetWorth" aria-label="Net worth by month"></canvas></div></div>
-    <div class="card span2"><h3>Income vs spending</h3><div class="chart-box"><canvas id="cIncSpend" aria-label="Income and spending by month"></canvas></div></div>
-    <div class="card span2"><h3>Deployment pay</h3>
+    <div class="card span2"><h3>Money in vs spending</h3><div class="chart-box"><canvas id="cIncSpend" aria-label="Money in and spending by month"></canvas></div></div>
+    <div class="card span2"><h3>Op pay</h3>
       ${opTotal ? `<div class="grid g3">
-        <div class="kpi"><div class="label">Op pay earned</div><div class="value pos">${gbp0(opTotal)}</div><div class="note">Across ${opMonths} month${opMonths === 1 ? "" : "s"} on Op</div></div>
-        <div class="kpi"><div class="label">Saved or invested in those months</div><div class="value">${gbp0(opSaved)}</div><div class="note">${opSaved >= opTotal ? "More than all of your Op pay" : gbp0(opTotal - opSaved) + " of the Op pay wasn't put away"}</div></div>
+        <div class="kpi"><div class="label">Op pay earned</div><div class="value">${gbp0(opTotal)}</div><div class="note">Across ${opMonths} month${opMonths === 1 ? "" : "s"} on Op</div></div>
+        <div class="kpi"><div class="label">Saved in those months</div><div class="value">${gbp0(opSaved)}</div><div class="note">${opSaved >= opTotal ? "More than all of your Op pay" : gbp0(opTotal - opSaved) + " of it wasn't put away"}</div></div>
         <div class="kpi"><div class="label">Put away</div><div class="value ${opSaved >= opTotal * 0.5 ? "pos" : "warn-t"}">${(opSaved / opTotal * 100).toFixed(0)}%</div><div class="meter"><i style="width:${opPct}%"></i></div><div class="note">Saved ÷ Op pay</div></div>
-      </div>` : '<div class="empty">Enter Op pay on the Monthly tab for the months you\'re deployed and it will show here.</div>'}
+      </div>` : '<div class="empty">Add Op pay on the Monthly tab for the months you\'re away and it shows here.</div>'}
     </div>
   </div>`;
 }
@@ -540,96 +674,65 @@ function drawOverview() {
   const parts = [...Object.entries(TYPES).map(([t, d]) => [d.label, w.byType[t] || 0, d.color]), ...w.per.map(({ h, st }) => [h.short || h.name, st.value, h.color]), ["Cash to invest", w.cash, CASH_COL]].filter(p => p[1] > 0);
   pieChart("cWealthPie", parts.map(p => p[0]), parts.map(p => p[1]), parts.map(p => p[2]), "58%");
   const keys = allMonthKeys().slice(-24);
-  mkChart("cNetWorth", { type: "line", data: { labels: keys.map(k => monthLabel(k)), datasets: [{ label: "Net worth", data: keys.map(netWorthAt), borderColor: "#3ec27f", backgroundColor: "rgba(62,194,127,.12)", fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: "#3ec27f" }] }, options: { plugins: { legend: { display: false }, tooltip: moneyTip }, scales: { y: { ticks: moneyTick, beginAtZero: false }, x: { grid: { display: false } } } } });
+  mkChart("cNetWorth", { type: "line", data: { labels: keys.map(k => monthLabel(k)), datasets: [{ label: "Net worth", data: keys.map(netWorthAt), borderColor: "#4256f4", backgroundColor: "rgba(66,86,244,.10)", fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: "#4256f4" }] }, options: { plugins: { legend: { display: false }, tooltip: moneyTip }, scales: { y: { ticks: moneyTick, beginAtZero: false }, x: { grid: { display: false } } } } });
   const mk = activityMonths().slice(-12);
   mkChart("cIncSpend", { type: "bar", data: { labels: mk.map(k => monthLabel(k)), datasets: [
-    { label: "Base & other pay", data: mk.map(k => num(monthData(k).income.base) + num(monthData(k).income.other)), backgroundColor: "#2e8f5e", stack: "in", borderRadius: 3 },
-    { label: "Op pay", data: mk.map(k => num(monthData(k).income.op)), backgroundColor: "#5fe0a0", stack: "in", borderRadius: 3 },
-    { label: "Spending", data: mk.map(spendOf), backgroundColor: "#ef5b52", stack: "out", borderRadius: 3 },
-    { label: "Saved / invested", data: mk.map(k => num(monthData(k).saved)), backgroundColor: "#e6a63c", stack: "out", borderRadius: 3 }
+    { label: "Base & other pay", data: mk.map(k => num(monthData(k).income.base) + num(monthData(k).income.other)), backgroundColor: "#4256f4", stack: "in", borderRadius: 3 },
+    { label: "Op pay", data: mk.map(k => num(monthData(k).income.op)), backgroundColor: "#9aa6ff", stack: "in", borderRadius: 3 },
+    { label: "Spending", data: mk.map(spendOf), backgroundColor: "#f2555a", stack: "out", borderRadius: 3 },
+    { label: "Saved / invested", data: mk.map(k => num(monthData(k).saved)), backgroundColor: "#f5a524", stack: "out", borderRadius: 3 }
   ] }, options: { plugins: { tooltip: moneyTip }, scales: { y: { stacked: true, ticks: moneyTick }, x: { stacked: true, grid: { display: false } } } } });
 }
 
 function viewMonth() {
-  const k = ui.month, m = monthData(k);
+  const k = ui.month, m = monthData(k), pk = shiftMonth(k, -1), pm = monthData(pk);
   const inc = incomeOf(m), sp = spendOf(k), saved = num(m.saved), left = inc - sp - saved;
   const totalBudget = state.categories.reduce((t, c) => t + num(c.budget), 0);
-  const rows = state.categories.map((c, i) => {
+  const pays = m.payments || [], extras = m.extras || [];
+  const tiles = state.categories.map((c, i) => {
     const v = catSpend(c, k), b = num(c.budget), p = b ? v / b * 100 : 0;
     const cls = !b ? "" : p > 100 ? "over" : p >= 80 ? "warn" : "";
-    const status = b ? (p > 100 ? `<span class="neg">${gbp(v - b)} over</span>` : gbp(b - v) + " left of " + gbp0(b)) : "No limit set";
-    return `<div class="cat">
-      <span class="sw" style="background:${catColor(c, i)}"></span>
-      <span class="name">${esc(c.name)}<small>${status}${c.fixed ? " · bill" : ""}${c.linked ? ' · <a href="#gifts" class="pos">from Presents</a>' : ""}</small></span>
-      <span class="money"><input id="sp-${c.id}" inputmode="decimal" ${c.linked ? 'readonly class="ro" title="Worked out from the Presents tab"' : `data-spend="${c.id}"`} value="${v ? v.toFixed(2) : ""}" placeholder="0.00" aria-label="${esc(c.name)} spent"></span>
-      <span class="money"><input id="bg-${c.id}" inputmode="decimal" data-budget="${c.id}" value="${b ? b : ""}" placeholder="limit" aria-label="${esc(c.name)} monthly limit"></span>
-      <button class="x" data-delcat="${c.id}" id="del-${c.id}" aria-label="Remove ${esc(c.name)}" title="Remove category">×</button>
-      ${b ? `<span class="bar ${cls}"><i style="width:${Math.min(100, p)}%"></i></span>` : ""}
-    </div>`;
+    const n = pays.filter(x => x.cat === c.id).length;
+    const badge = b && p > 100 ? '<span class="badge down">Over</span>' : c.fixed ? '<span class="badge flat">Bill</span>' : c.linked ? '<span class="badge blue">Presents</span>' : n ? `<span class="badge blue">${n}</span>` : "";
+    const note = b ? (p > 100 ? `<span class="neg">${gbp(v - b)} over</span> · limit ${gbp0(b)}` : `${gbp(b - v)} left of ${gbp0(b)}`) : (n ? `${n} payment${n === 1 ? "" : "s"}` : "Tap to log a payment");
+    return `<button type="button" class="tile" data-sheet="cat:${c.id}" id="tile-${c.id}">
+      <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${catColor(c, i)}"></i><span class="t">${esc(c.name)}</span></span>${badge}</span>
+      <span class="tile-val">${gbp(v)}</span><span class="tile-note">${note}</span>
+      ${b ? `<span class="meter ${cls}"><i style="width:${Math.min(100, p)}%"></i></span>` : ""}
+    </button>`;
   }).join("");
-  const prev = state.months[shiftMonth(k, -1)];
+  const inTile = (key, label, val, note, color) => `<button type="button" class="tile" data-sheet="${key}" id="tile-${key.replace(":", "-")}">
+      <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${color}"></i><span class="t">${label}</span></span></span>
+      <span class="tile-val">${gbp(val)}</span><span class="tile-note">${note}</span></button>`;
+  const pl = plannedFor(k);
+  const recent = [...pays.map(x => ({ ...x, out: true })), ...extras.map(x => ({ ...x, out: false }))]
+    .map((x, i) => ({ x, i })).sort((a, b) => b.x.date.localeCompare(a.x.date) || b.i - a.i).slice(0, 8).map(o => o.x);
+  const catName = id => { const c = state.categories.find(c => c.id === id); return c ? c.name : "Removed category"; };
+  const prev = state.months[pk];
   return `${exampleBanner()}
   <div class="view-head">
     <div class="month-nav"><button class="ghost" data-mnav="-1" id="mPrev" aria-label="Previous month">◀</button><span class="m">${monthLabel(k, true)}</span><button class="ghost" data-mnav="1" id="mNext" aria-label="Next month">▶</button></div>
-    <div class="row" style="flex:0 0 auto">${prev ? '<button id="btnCopyBills" data-act="copy-bills">Copy bills from last month</button>' : ""}</div>
+    <div class="row" style="flex:0 0 auto">${prev ? '<button id="btnCopyBills" data-act="copy-bills">Copy bills from last month</button>' : ""}<button class="primary" data-sheet="pay" id="btnQuickPay">+ Log a payment</button></div>
   </div>
   <div class="grid g4">
-    <div class="card kpi"><div class="label">Income</div><div class="value pos">${gbp0(inc)}</div></div>
-    <div class="card kpi"><div class="label">Spending</div><div class="value neg">${gbp0(sp)}</div><div class="note">${totalBudget ? "Limits add up to " + gbp0(totalBudget) : ""}</div></div>
-    <div class="card kpi"><div class="label">Saved / invested</div><div class="value">${gbp0(saved)}</div></div>
-    <div class="card kpi"><div class="label">Left over</div><div class="value ${left >= 0 ? "pos" : "neg"}">${gbp0(left)}</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Money in</span>${trendBadge(inc, incomeOf(pm))}</div><div class="value">${gbp0(inc)}</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Spent</span>${trendBadge(sp, spendOf(pk), false)}</div><div class="value">${gbp0(sp)}</div><div class="note">${totalBudget ? "Limits add up to " + gbp0(totalBudget) : ""}</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Saved / invested</span></div><div class="value">${gbp0(saved)}</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Left over</span></div><div class="value ${left >= 0 ? "pos" : "neg"}">${gbp0(left)}</div></div>
   </div>
+  <div class="section-head"><h3>Money in</h3><span class="hint">Tap a box to change it</span></div>
+  <div class="tiles">
+    ${inTile("inc:base", "Base pay", num(m.income.base), "Take-home pay", "#4256f4")}
+    ${inTile("inc:op", "Op pay", num(m.income.op), num(m.income.op) ? "Deployment pay" : "Not on Op this month", "#8b5cf6")}
+    ${inTile("inc:extra", "Extra money", num(m.income.other), extras.length ? `${extras.length} thing${extras.length === 1 ? "" : "s"} logged` : "Sold something? Log it here", "#16b47e")}
+    ${inTile("saved", "Saved / invested", saved, pl ? (saved >= pl ? `<span class="pos">Hit your plan of ${gbp0(pl)}</span>` : `${gbp0(pl - saved)} short of your ${gbp0(pl)} plan`) : "Moved to savings", "#f5a524")}
+  </div>
+  <div class="section-head"><h3>Money out</h3><span class="hint">${gbp(sp)} spent${totalBudget ? " of " + gbp0(totalBudget) + " in limits" : ""}</span></div>
+  <div class="tiles">${tiles}<button type="button" class="tile add" data-sheet="newcat" id="tile-newcat"><span class="plus">+</span>Add a category</button></div>
   <div class="grid g2" style="margin-top:16px">
-    <div class="stack">
-      <div class="card"><h3>Money in</h3>
-        <div class="row">
-          <label class="f">Base pay (take-home)<span class="money"><input id="inc-base" inputmode="decimal" data-inc="base" value="${num(m.income.base) || ""}" placeholder="0.00"></span></label>
-          <label class="f">Op / deployment pay<span class="money"><input id="inc-op" inputmode="decimal" data-inc="op" value="${num(m.income.op) || ""}" placeholder="0.00"></span></label>
-          <label class="f">Other income<span class="money"><input id="inc-other" inputmode="decimal" data-inc="other" value="${num(m.income.other) || ""}" placeholder="0.00"></span></label>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <label class="f">Moved to savings or investments<span class="money"><input id="inc-saved" inputmode="decimal" data-saved="1" value="${saved || ""}" placeholder="0.00"></span></label>
-          <label class="f">Planned to save<span class="money"><input id="inc-planned" inputmode="decimal" data-planned="1" value="${m.planned !== undefined && m.planned !== "" ? num(m.planned) : ""}" placeholder="${num(state.plan.monthly)} (plan)"></span></label>
-        </div>
-        ${(() => { const pl = plannedFor(k); return pl ? `<p class="hint" style="margin-bottom:0">${saved >= pl ? `<span class="pos">Hit your plan of ${gbp0(pl)}</span>` : `<span class="warn-t">${gbp0(pl - saved)} short of your plan of ${gbp0(pl)}</span>`} this month.</p>` : ""; })()}
-        <p class="hint">Op pay is kept separate so the Overview can show how much of your deployment money you're putting away.</p>
-      </div>
-      <div class="card"><h3>Spending split</h3>${sp ? '<div class="chart-box short"><canvas id="cMonthPie"></canvas></div>' : '<div class="empty">Fill in what you spent and the chart appears here.</div>'}</div>
-    </div>
-    <div class="card"><h3>Money out</h3>
-      ${payLogHTML(k, m)}
-      <div class="cat-head"><span></span><span>Category</span><span>Spent</span><span>Monthly limit</span><span></span></div>
-      <div class="cat-list" style="margin-top:8px">${rows}</div>
-      <form id="addCat" class="row" style="margin-top:16px; border-top:1px solid var(--line); padding-top:14px">
-        <label class="f">New category<input id="newCatName" placeholder="e.g. Gym, Rent, Subscriptions" maxlength="40"></label>
-        <label class="f" style="flex:0 1 120px">Monthly limit<span class="money"><input id="newCatBudget" inputmode="decimal" placeholder="optional"></span></label>
-        <button class="primary" type="submit" id="btnAddCat">Add</button>
-      </form>
-      <p class="hint">Presents fill in by themselves from the Presents tab, in the month you bought them. Limit bars turn amber at 80% and red once you go over.</p>
-    </div>
+    <div class="card"><h3>Spending split</h3>${sp ? '<div class="chart-box short"><canvas id="cMonthPie"></canvas></div>' : '<div class="empty">Log a payment and the chart appears here.</div>'}</div>
+    <div class="card"><h3>Latest</h3>${recent.length ? `<div class="tbl-wrap"><table><tbody>${recent.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(x.note || (x.out ? catName(x.cat) : "Extra money"))}${x.out && x.note ? `<br><span class="hint">${esc(catName(x.cat))}</span>` : ""}</td><td class="r ${x.out ? "" : "pos"}"><b>${x.out ? "−" : "+"}${gbp(num(x.amount))}</b></td></tr>`).join("")}</tbody></table></div>` : '<div class="empty">Payments and extra money you log show up here.</div>'}</div>
   </div>`;
-}
-function payLogHTML(k, m) {
-  const cats = state.categories.filter(c => !c.linked);
-  if (!cats.length) return "";
-  if (!cats.find(c => c.id === ui.payCat)) ui.payCat = cats[0].id;
-  const list = (m.payments || []).slice().reverse().sort((a, b) => b.date.localeCompare(a.date));
-  const catName = id => { const c = state.categories.find(c => c.id === id); return c ? c.name : "Removed category"; };
-  const rows = list.map(x => `<tr><td>${shortDate(x.date)}</td><td>${esc(catName(x.cat))}</td><td>${esc(x.note || "")}</td><td class="r">${gbp(num(x.amount))}</td><td class="r" style="width:30px"><button class="x" data-delpay="${x.id}" id="dp-${x.id}" aria-label="Delete payment">×</button></td></tr>`).join("");
-  return `<form id="payForm" class="stack" style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px">
-        <div style="font-weight:700">Log a payment</div>
-        <div class="row">
-          <label class="f">Category<select id="payCat">${cats.map(c => `<option value="${c.id}"${c.id === ui.payCat ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
-          <label class="f" style="flex:0 1 130px">Amount<span class="money"><input id="payAmt" inputmode="decimal" placeholder="0.00" required></span></label>
-        </div>
-        <div class="row" style="align-items:flex-end">
-          <label class="f">What for (optional)<input id="payNote" maxlength="40" placeholder="e.g. Tesco, fuel, Netflix"></label>
-          <button class="primary" type="submit" id="btnPay">Add payment</button>
-        </div>
-        <p class="hint" style="margin:0">Each payment is added onto that category's total for ${monthLabel(k, true)}, so you never have to add it up yourself.</p>
-      </form>
-      ${list.length ? `<details class="more" data-pot-details="paylog"${ui.open.has("paylog") ? " open" : ""} style="margin-bottom:14px"><summary>Payments logged this month (${list.length})</summary>
-        <div class="tbl-wrap scroll-y"><table><thead><tr><th>Date</th><th>Category</th><th>What for</th><th class="r">Amount</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></details>` : ""}`;
 }
 function drawMonth() {
   const cats = state.categories.map((c, i) => ({ c, v: catSpend(c, ui.month), col: catColor(c, i) })).filter(x => x.v > 0);
@@ -749,9 +852,9 @@ function viewWealth() {
     <div class="card span2"><h3>Savings goal</h3>
       <div class="ring">
         <svg width="130" height="130" viewBox="0 0 130 130" role="img" aria-label="${(gp * 100).toFixed(0)}% of goal">
-          <circle cx="65" cy="65" r="${R}" fill="none" stroke="#182620" stroke-width="14"/>
-          <circle cx="65" cy="65" r="${R}" fill="none" stroke="#3ec27f" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - gp)}" transform="rotate(-90 65 65)"/>
-          <text x="65" y="72" text-anchor="middle" fill="#e4eee8" font-family="Barlow Condensed, sans-serif" font-weight="700" font-size="26">${(gp * 100).toFixed(0)}%</text>
+          <circle cx="65" cy="65" r="${R}" fill="none" stroke="#eef0ff" stroke-width="14"/>
+          <circle cx="65" cy="65" r="${R}" fill="none" stroke="#4256f4" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - gp)}" transform="rotate(-90 65 65)"/>
+          <text x="65" y="72" text-anchor="middle" fill="#0f1733" font-family="Inter, sans-serif" font-weight="800" font-size="24">${(gp * 100).toFixed(0)}%</text>
         </svg>
         <div class="stack" style="flex:1; min-width:0">
           <div class="kpi"><div class="label">${esc(g.name)}</div><div class="value">${gbp0(w.total)} <span style="color:var(--muted); font-size:1.2rem">of ${gbp0(num(g.target))}</span></div><div class="note">${w.total >= num(g.target) ? '<span class="pos">Goal reached</span>' : gbp0(num(g.target) - w.total) + " to go. Counts every pot plus the S&amp;P account."}</div></div>
@@ -796,121 +899,41 @@ function viewSP() {
   if (!hs.find(h => h.id === ui.hold)) ui.hold = hs[0] ? hs[0].id : "";
   const sel = hs.find(h => h.id === ui.hold);
   const ss = sel ? holdStats(sel) : null;
-  const selLast = ss && ss.buys[ss.buys.length - 1];
-  const cashYearly = s.cash * s.cashRate / 100;
-  const holdCards = s.per.map(({ h, st }) => {
+  const tiles = s.per.map(({ h, st }) => {
     const g = st.value - st.paid, gp = st.paid ? g / st.paid * 100 : 0;
-    const open = ui.open.has("h-" + h.id) ? " open" : "";
-    const live = (ui.live && ui.live[h.id]) || {};
-    return `<div class="card">
-      <div class="kpi"><div class="label" style="color:${h.color}">${esc(h.short || h.name)}</div>
-        <div style="font-weight:600; margin-top:2px">${esc(h.name)}</div>
-        <div class="value">${gbp0(st.value)}</div>
-        <div class="note">${st.shares.toFixed(3)} shares at ${gbp(st.price)}</div></div>
-      <div class="pot-facts">
-        <div>Put in <b>${gbp0(st.paid)}</b> over ${st.buys.length} buy${st.buys.length === 1 ? "" : "s"}</div>
-        <div>Profit / loss <b class="${g >= 0 ? "pos" : "neg"}">${g >= 0 ? "+" : "−"}${gbp0(Math.abs(g)).replace("−", "")} (${pct(gp)})</b></div>
-        <div>Your average price <b>${gbp(st.avg)}</b></div>
-      </div>
-      <form class="row" data-priceform="${h.id}" style="margin-top:12px">
-        <label class="f">Today's price<span class="money"><input id="hp-${h.id}" inputmode="decimal" value="${num(h.currentPrice) || ""}" placeholder="0.00"></span></label>
-        <label class="f">Checked on<input type="date" id="hd-${h.id}" value="${h.priceDate || todayISO()}"></label>
-        <button class="primary" type="submit" id="hb-${h.id}">Update</button>
-      </form>
-      <div class="row" style="margin-top:8px; align-items:center">
-        <button type="button" class="small" data-live="${h.id}" id="live-${h.id}"${live.busy ? " disabled" : ""}>${live.busy ? "Fetching…" : "Get live price"}</button>
-        ${live.msg ? `<span class="hint ${live.ok ? "pos" : live.busy ? "" : "warn-t"}" style="flex:1 1 200px">${esc(live.msg)}</span>` : `<span class="hint" style="flex:1 1 200px">${h.ticker ? "From Yahoo Finance (" + esc(h.ticker) + ")" : "Set a Yahoo ticker to fetch prices"}</span>`}
-      </div>
-      ${(() => { const ob = h.buys.find(b => b.opening); const sh = ob && num(ob.price) ? num(ob.amount) / num(ob.price) : 0; return `
-      <form class="stack" data-openform="${h.id}" style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px">
-        <div class="hint" style="margin:0"><b style="color:var(--fg)">Shares you already own</b> · ${ob ? `now set to ${+sh.toFixed(4)} shares at ${gbp(num(ob.price))} average (${gbp(num(ob.amount))} paid), as of ${shortDate(ob.date)}` : "if you bought before using this tracker, enter what you hold and your average price"}</div>
-        <div class="row">
-          <label class="f">Number of shares<input id="os-${h.id}" inputmode="decimal" value="${ob ? +sh.toFixed(4) : ""}" placeholder="e.g. 25.5"></label>
-          <label class="f">Average price paid<span class="money"><input id="oa-${h.id}" inputmode="decimal" value="${ob ? num(ob.price) : ""}" placeholder="0.00"></span></label>
-          <label class="f">As of<input type="date" id="od-${h.id}" value="${ob ? ob.date : todayISO()}"></label>
-          <button class="primary" type="submit" id="ob-${h.id}">${ob ? "Update" : "Save"}</button>
-        </div>
-        ${ob ? `<div><button type="button" class="small ghost" data-clearopen="${h.id}" id="oc-${h.id}">Remove starting holding</button></div>` : ""}
-      </form>`; })()}
-      <details class="more" data-pot-details="h-${h.id}"${open}><summary>Name and delete</summary>
-        <div class="row">
-          <label class="f">Name<input id="hn-${h.id}" data-hid="${h.id}" data-hf="name" value="${esc(h.name)}" maxlength="50"></label>
-          <label class="f">Short name<input id="hs-${h.id}" data-hid="${h.id}" data-hf="short" value="${esc(h.short || "")}" maxlength="20"></label>
-          <label class="f">Yahoo ticker<input id="ht-${h.id}" data-hid="${h.id}" data-hf="ticker" value="${esc(h.ticker || "")}" maxlength="20" placeholder="e.g. VUSA.L"></label>
-        </div>
-        <p class="hint">The ticker as Yahoo Finance UK shows it. London-listed funds end in .L, e.g. VUSA.L, CSP1.L, SGLN.L.</p>
-        <div style="margin-top:10px"><button class="small danger" data-delhold="${h.id}" id="dhold-${h.id}">Delete this holding and its buys</button></div>
-      </details>
-    </div>`;
+    const badge = st.shares ? `<span class="badge ${g >= 0 ? "up" : "down"}">${g >= 0 ? "▲" : "▼"} ${pct(gp).replace(/^[+−]/, "")}</span>` : '<span class="badge flat">Empty</span>';
+    return `<button type="button" class="tile" data-sheet="hold:${h.id}" id="tile-h-${h.id}">
+      <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${h.color}"></i><span class="t">${esc(h.short || h.name)}</span></span>${badge}</span>
+      <span class="tile-val">${gbp(st.value)}</span>
+      <span class="tile-note">${st.shares ? `${+st.shares.toFixed(4)} shares at ${gbp(st.price)}` : "Tap to add what you own"}</span>
+      ${st.shares ? `<span class="tile-note">Put in ${gbp(st.paid)} · <span class="${g >= 0 ? "pos" : "neg"}">${g >= 0 ? "+" : "−"}${gbp(Math.abs(g))}</span></span>` : ""}
+    </button>`;
   }).join("");
-  const allBuys = [];
-  hs.forEach(h => { const st = holdStats(h); h.buys.forEach(b => allBuys.push({ h, b, avg: st.avg })); });
-  allBuys.sort((a, b) => b.b.date.localeCompare(a.b.date));
-  const rows = allBuys.map(({ h, b, avg }) => {
-    const sh = num(b.price) ? num(b.amount) / num(b.price) : 0;
-    const cheap = num(b.price) <= avg;
-    return `<tr><td>${shortDate(b.date)}</td><td><span class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${h.color};margin-right:6px"></span>${esc(h.short || h.name)}</td><td class="r">${gbp(num(b.amount))}</td><td class="r">${gbp(num(b.price))}</td><td class="r">${sh.toFixed(4)}</td><td>${b.opening ? '<span class="pill b">Starting holding</span>' : `<span class="pill ${cheap ? "g" : "r"}">${cheap ? "Below avg" : "Above avg"}</span>`}</td><td class="r" style="width:30px"><button class="x" data-delbuy="${h.id}|${b.id}" id="db-${b.id}" aria-label="Delete buy">×</button></td></tr>`;
-  }).join("");
-  const repeats = hs.map(h => { const st = holdStats(h); const l = st.buys[st.buys.length - 1]; return l ? `<button class="small" data-repeat="${h.id}" id="rep-${h.id}">${esc(h.short || h.name)}: ${gbp(num(l.amount))} at ${gbp(num(l.price))}, ${shortDate(nextBuyDate(l))}</button>` : ""; }).filter(Boolean).join(" ");
+  const cashTile = `<button type="button" class="tile" data-sheet="cash" id="tile-cash">
+      <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${CASH_COL}"></i><span class="t">Cash waiting</span></span>${s.cashRate ? `<span class="badge blue">${s.cashRate}%</span>` : ""}</span>
+      <span class="tile-val">${gbp(s.cash)}</span><span class="tile-note">Not invested yet</span></button>`;
   const yrs = [1, 5, 10, 20];
   const start = s.total;
   const end = r => forecastSeries(start, fWeeklyAmt(f), r, num(f.years)).slice(-1)[0];
   const putIn = s.paid + s.cash + fWeeklyAmt(f) * 52 * num(f.years);
-  const split = s.per.map(({ h, st }) => esc(h.short || h.name) + " " + gbp0(st.value)).join(" · ");
+  const withBuys = hs.filter(h => holdStats(h).buys.length);
   return `${exampleBanner()}
-  <div class="view-head"><div><h2>S&amp;P 500 &amp; Gold</h2><p class="sub">Log each buy at the price you paid. Keep the cash waiting in the account up to date too.</p></div></div>
-  <div class="grid g4">
-    <div class="card kpi"><div class="label">Portfolio total</div><div class="value">${gbp0(s.total)}</div><div class="note">${split}${split ? " · " : ""}cash ${gbp0(s.cash)}</div></div>
-    <div class="card kpi"><div class="label">Put into investments</div><div class="value">${gbp0(s.paid)}</div><div class="note">${s.buyCount} buy${s.buyCount === 1 ? "" : "s"}</div></div>
-    <div class="card kpi"><div class="label">Profit / loss</div><div class="value ${gain >= 0 ? "pos" : "neg"}">${gain >= 0 ? "+" : "−"}${gbp0(Math.abs(gain)).replace("−", "")}</div><div class="note ${gain >= 0 ? "pos" : "neg"}">${pct(gainPct)}</div></div>
-    <div class="card kpi"><div class="label">Cash waiting to invest</div><div class="value" style="color:${CASH_COL}">${gbp0(s.cash)}</div><div class="note">${s.cashRate ? s.cashRate + "% interest · ≈ " + gbp(cashYearly) + " a year" : "No interest rate set"}</div></div>
+  <div class="view-head"><div><h2>Investments</h2><p class="sub">Tap a box to add what you own, log a buy, or see the details.</p></div>
+    <button class="primary" data-act="live-all" id="btnLiveAll"${liveBusy ? " disabled" : ""}>${liveBusy ? "Fetching…" : "Update live prices"}</button></div>
+  <div class="grid g3">
+    <div class="card kpi"><div class="kpi-top"><span class="label">Worth now</span></div><div class="value">${gbp0(s.total)}</div><div class="note">Investments ${gbp0(s.value)} + cash ${gbp0(s.cash)}</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">You've put in</span></div><div class="value">${gbp0(s.paid)}</div><div class="note">Across ${s.per.filter(x => x.st.shares).length} investment${s.per.filter(x => x.st.shares).length === 1 ? "" : "s"}</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Profit / loss</span>${s.paid ? `<span class="badge ${gain >= 0 ? "up" : "down"}">${pct(gainPct)}</span>` : ""}</div><div class="value ${gain >= 0 ? "pos" : "neg"}">${gain >= 0 ? "+" : "−"}${gbp0(Math.abs(gain))}</div><div class="note">Worth now minus what you put in</div></div>
   </div>
-  <div class="row" style="margin-top:16px; align-items:center; justify-content:space-between">
-    <p class="hint" style="margin:0; flex:1 1 300px">Live prices come from Yahoo Finance, fetched by GitHub every 30 minutes on weekdays (delayed about 15 minutes).</p>
-    <button class="primary" data-act="live-all" id="btnLiveAll"${liveBusy ? " disabled" : ""}>${liveBusy ? "Fetching…" : "Update all live prices"}</button>
-  </div>
-  <div class="grid g2" style="margin-top:12px">${holdCards}</div>
+  <div class="section-head"><h3>Your investments</h3><span class="hint">Prices from Yahoo Finance, refreshed every 30 minutes on weekdays</span></div>
+  <div class="tiles">${tiles}${cashTile}<button type="button" class="tile add" data-sheet="newhold" id="tile-newhold"><span class="plus">+</span>Add an investment</button></div>
   <div class="grid g2" style="margin-top:16px">
-    <div class="card"><h3>Log a buy</h3>
-      <form id="buyForm" class="stack">
-        <div class="row">
-          <label class="f">What<select id="buyHold">${hs.map(h => `<option value="${h.id}"${h.id === ui.hold ? " selected" : ""}>${esc(h.short || h.name)}</option>`).join("")}</select></label>
-          <label class="f">Date<input type="date" id="buyDate" value="${nextBuyDate(selLast)}" required></label>
-        </div>
-        <div class="row">
-          <label class="f">Amount<span class="money"><input id="buyAmt" inputmode="decimal" value="${selLast ? num(selLast.amount) : ""}" placeholder="50.00" required></span></label>
-          <label class="f">Price per share<span class="money"><input id="buyPrice" inputmode="decimal" placeholder="${selLast ? num(selLast.price).toFixed(2) : "0.00"}" required></span></label>
-        </div>
-        <div class="row" style="align-items:center">
-          <label class="check"><input type="checkbox" id="buyFromCash"${s.cash > 0 ? " checked" : ""}> Paid from the cash waiting</label>
-          <button class="primary" type="submit" id="btnBuy">Add buy</button>
-        </div>
-      </form>
-      ${repeats ? `<p class="hint" style="margin-top:10px">Same as last time? Repeat a buy:</p><div class="row" style="gap:6px">${repeats}</div>` : ""}
-    </div>
-    <div class="card"><h3>Cash waiting to invest</h3>
-      <form id="cashForm" class="row">
-        <label class="f">Cash balance now<span class="money"><input id="cashBal" inputmode="decimal" value="${s.cash ? s.cash.toFixed(2) : ""}" placeholder="0.00"></span></label>
-        <label class="f">Interest rate %<input id="cashRate" inputmode="decimal" value="${s.cashRate || ""}" placeholder="e.g. 4"></label>
-        <button class="primary" type="submit" id="btnCash">Update</button>
-      </form>
-      <form id="cashAdd" class="row" style="margin-top:10px">
-        <label class="f">Paid in more cash<span class="money"><input id="cashIn" inputmode="decimal" placeholder="e.g. 200"></span></label>
-        <button type="submit" id="btnCashIn">Add to cash</button>
-      </form>
-      <p class="hint">Cash counts toward your portfolio total and net worth. Interest is worked out on today's balance. Prices aren't live: type them in from your trading app.</p>
-      <form id="holdAdd" class="row" style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px">
-        <label class="f">Add another investment<input id="nhName" maxlength="50" placeholder="e.g. FTSE All-World (VWRP)"></label>
-        <label class="f" style="flex:0 1 130px">Short name<input id="nhShort" maxlength="20" placeholder="e.g. VWRP"></label>
-        <button type="submit" id="btnAddHold">Add</button>
-      </form>
-    </div>
-    <div class="card span2"><div class="view-head" style="margin-bottom:8px"><h3 style="margin:0">Put in vs worth</h3>
-      <div class="seg" role="group" aria-label="Which investment">${hs.map(h => `<button type="button" data-hold="${h.id}" id="hold-${h.id}" aria-pressed="${h.id === ui.hold}">${esc(h.short || h.name)}</button>`).join("")}</div></div>
-      ${ss && ss.buys.length ? '<div class="chart-box tall"><canvas id="cSPHistory"></canvas></div>' : '<div class="empty">Log a buy for this one and the graph starts here.</div>'}</div>
-    <div class="card span2"><h3>Did you buy high or low? · ${sel ? esc(sel.short || sel.name) : ""}</h3>${ss && ss.buys.length ? `<p class="hint" style="margin-top:-6px">Your average price is <b>${gbp(ss.avg)}</b>. Today's is <b class="${ss.price >= ss.avg ? "pos" : "neg"}">${gbp(ss.price)}</b>.</p><div class="chart-box"><canvas id="cSPPrices"></canvas></div><p class="hint">Green dots are buys below your average price, red dots are above it. The dashed line is your average.</p>` : '<div class="empty">Each buy will show here as a dot.</div>'}</div>
+    ${withBuys.length ? `<div class="card span2"><div class="view-head" style="margin-bottom:8px"><h3 style="margin:0">Put in vs worth</h3>
+      <div class="seg" role="group" aria-label="Which investment">${withBuys.map(h => `<button type="button" data-hold="${h.id}" id="hold-${h.id}" aria-pressed="${h.id === ui.hold}">${esc(h.short || h.name)}</button>`).join("")}</div></div>
+      ${ss && ss.buys.length ? '<div class="chart-box tall"><canvas id="cSPHistory"></canvas></div>' : '<div class="empty">Pick one above.</div>'}</div>
+    ${ss && ss.buys.length > 1 ? `<div class="card span2"><h3>Did you buy high or low? · ${esc(sel.short || sel.name)}</h3><p class="hint" style="margin-top:-6px">Your average price is <b>${gbp(ss.avg)}</b>. Today's is <b class="${ss.price >= ss.avg ? "pos" : "neg"}">${gbp(ss.price)}</b>.</p><div class="chart-box"><canvas id="cSPPrices"></canvas></div><p class="hint">Green dots are buys below your average price, red are above it. The dashed line is your average.</p></div>` : ""}` : ""}
     <div class="card span2"><h3>Forecast</h3>
-      <p class="hint" style="margin-top:-6px">Starts from your whole portfolio of ${gbp0(start)} (all investments and cash). Gold doesn't move with the S&amp;P, so treat this as a rough guide.</p>
+      <p class="hint" style="margin-top:-6px">Starts from everything here: ${gbp0(start)} (investments and cash). A rough guide, not a promise.</p>
       <div class="grid g3" style="align-items:end">
         <div><div class="hint" style="margin-bottom:6px">How far ahead</div><div class="seg" role="group" aria-label="Forecast years">${yrs.map(y => `<button type="button" data-years="${y}" id="yr-${y}" aria-pressed="${num(f.years) === y}">${y} yr${y > 1 ? "s" : ""}</button>`).join("")}</div></div>
         <label class="f">Monthly deposit<div class="range-row"><input type="range" id="fWeekly" min="0" max="5000" step="25" value="${Math.min(5000, fMonthly(f))}" aria-label="Monthly deposit"><span class="money" style="flex:0 0 110px"><input id="fMonthlyNum" inputmode="decimal" value="${fMonthly(f)}" aria-label="Monthly deposit amount"></span></div></label>
@@ -920,21 +943,20 @@ function viewSP() {
       <div class="tbl-wrap" style="margin-top:12px"><table id="fTable">
         <thead><tr><th>In ${num(f.years)} year${num(f.years) > 1 ? "s" : ""}</th><th class="r">Total put in</th><th class="r">Worth</th><th class="r">Growth</th></tr></thead>
         <tbody>
-          ${[["Cautious (4%)", 4, "#ef5b52"], ["Average (7%)", 7, "#3ec27f"], ["Strong (10%)", 10, "#5fe0a0"], ["Your rate (" + num(f.rate) + "%)", num(f.rate), "#e6a63c"]].map(([n, r, c]) => { const e = end(r); return `<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};margin-right:8px"></span><span>${n}</span></td><td class="r">${gbp0(putIn)}</td><td class="r"><b>${gbp0(e)}</b></td><td class="r ${e - putIn >= 0 ? "pos" : "neg"}">${gbp0(e - putIn)}</td></tr>`; }).join("")}
+          ${[["Cautious (4%)", 4, "#f2555a"], ["Average (7%)", 7, "#4256f4"], ["Strong (10%)", 10, "#16b47e"], ["Your rate (" + num(f.rate) + "%)", num(f.rate), "#f5a524"]].map(([n, r, c]) => { const e = end(r); return `<tr><td><span class="dot" style="background:${c};margin-right:8px"></span><span>${n}</span></td><td class="r">${gbp0(putIn)}</td><td class="r"><b>${gbp0(e)}</b></td><td class="r ${e - putIn >= 0 ? "pos" : "neg"}">${gbp0(e - putIn)}</td></tr>`; }).join("")}
         </tbody></table></div>
       <p class="disclaimer">This is a "what if" calculator, not a prediction or financial advice. It assumes steady growth at the rates shown. The S&amp;P 500 has averaged roughly 7% a year after inflation over the long run; gold behaves differently. Real returns jump around a lot year to year and can be negative.</p>
     </div>
-    <div class="card span2"><h3>All buys</h3>${allBuys.length ? `<div class="tbl-wrap scroll-y"><table><thead><tr><th>Date</th><th>What</th><th class="r">Amount</th><th class="r">Price</th><th class="r">Shares</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">No buys yet.</div>'}</div>
   </div>`;
 }
 let forecastChart = null;
 function forecastData() {
   const s = spValueNow(), f = state.forecast, Y = num(f.years);
-  const lines = [["Cautious 4%", 4, "#ef5b52"], ["Average 7%", 7, "#3ec27f"], ["Strong 10%", 10, "#5fe0a0"], ["Your rate " + num(f.rate) + "%", num(f.rate), "#e6a63c"]];
+  const lines = [["Cautious 4%", 4, "#f2555a"], ["Average 7%", 7, "#4256f4"], ["Strong 10%", 10, "#16b47e"], ["Your rate " + num(f.rate) + "%", num(f.rate), "#f5a524"]];
   const series = lines.map(([n, r, c], i) => ({ label: n, data: forecastSeries(s.total, fWeeklyAmt(f), r, Y), borderColor: c, backgroundColor: c, borderDash: i === 3 ? [6, 4] : [], pointRadius: 0, tension: .25, borderWidth: i === 1 ? 3 : 2 }));
   const n = series[0].data.length;
   const step = Y <= 1 ? 52 / 12 : 52;
-  series.push({ label: "Money put in", data: Array.from({ length: n }, (_, i) => s.paid + s.cash + fWeeklyAmt(f) * Math.min(step * i, 52 * Y)), borderColor: "#8ea79a", backgroundColor: "rgba(142,167,154,.08)", fill: true, pointRadius: 0, borderWidth: 1.5 });
+  series.push({ label: "Money put in", data: Array.from({ length: n }, (_, i) => s.paid + s.cash + fWeeklyAmt(f) * Math.min(step * i, 52 * Y)), borderColor: "#8a91ab", backgroundColor: "rgba(138,145,171,.08)", fill: true, pointRadius: 0, borderWidth: 1.5 });
   const now = new Date();
   const labels = Array.from({ length: n }, (_, i) => i === 0 ? "Now" : Y <= 1 ? monthLabel(shiftMonth(monthKey(now), i)) : String(now.getFullYear() + i));
   return { labels, series };
@@ -948,13 +970,13 @@ function drawSP() {
     ss.buys.forEach(b => { if (num(b.price)) cs += num(b.amount) / num(b.price); cp += num(b.amount); labels.push(shortDate(b.date)); dep.push(cp); val.push(cs * num(b.price)); });
     if (num(sel.currentPrice)) { labels.push("Today"); dep.push(cp); val.push(cs * num(sel.currentPrice)); }
     mkChart("cSPHistory", { type: "line", data: { labels, datasets: [
-      { label: (sel.short || sel.name) + " worth", data: val, borderColor: "#3ec27f", backgroundColor: "rgba(62,194,127,.12)", fill: true, tension: .25, pointRadius: 3, pointBackgroundColor: "#3ec27f" },
-      { label: "Put in", data: dep, borderColor: "#8ea79a", stepped: true, pointRadius: 0, borderWidth: 1.5 }
+      { label: (sel.short || sel.name) + " worth", data: val, borderColor: "#4256f4", backgroundColor: "rgba(66,86,244,.10)", fill: true, tension: .25, pointRadius: 3, pointBackgroundColor: "#4256f4" },
+      { label: "Put in", data: dep, borderColor: "#8a91ab", stepped: true, pointRadius: 0, borderWidth: 1.5 }
     ] }, options: { interaction: { mode: "index", intersect: false }, plugins: { tooltip: moneyTip }, scales: { y: { ticks: moneyTick }, x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } } } } });
     const prices = ss.buys.map(b => num(b.price));
     mkChart("cSPPrices", { type: "line", data: { labels: ss.buys.map(b => shortDate(b.date)), datasets: [
-      { label: "Price you paid", data: prices, borderColor: "#4a6b5a", pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: prices.map(p => p <= ss.avg ? "#3ec27f" : "#ef5b52"), pointBorderColor: prices.map(p => p <= ss.avg ? "#3ec27f" : "#ef5b52"), tension: .2 },
-      { label: "Your average", data: prices.map(() => ss.avg), borderColor: "#e6a63c", borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5 }
+      { label: "Price you paid", data: prices, borderColor: "#c3c9dc", pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: prices.map(p => p <= ss.avg ? "#16b47e" : "#f2555a"), pointBorderColor: prices.map(p => p <= ss.avg ? "#16b47e" : "#f2555a"), tension: .2 },
+      { label: "Your average", data: prices.map(() => ss.avg), borderColor: "#f5a524", borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5 }
     ] }, options: { plugins: { tooltip: moneyTip }, scales: { y: { ticks: { callback: v => "£" + Number(v).toFixed(0) } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } } } } });
   }
   const fd = forecastData();
@@ -1086,16 +1108,251 @@ function drawProgress() {
   const pad = arr => arr.concat(Array(ps.fut.length).fill(null));
   const lead = arr => Array(n - 1).fill(null).concat([arr[0]]);
   mkChart("cProgress", { type: "line", data: { labels, datasets: [
-    { label: "Actual", data: pad(ps.act), borderColor: "#3ec27f", backgroundColor: "rgba(62,194,127,.12)", fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: "#3ec27f", borderWidth: 3 },
-    { label: "Plan", data: pad(ps.exp), borderColor: "#e4eee8", borderWidth: 2, pointRadius: 0, tension: .3 },
-    { label: "Plan, next 12 months", data: lead([ps.exp[n - 1]]).concat(ps.futExp), borderColor: "#8ea79a", borderDash: [6, 4], pointRadius: 0, tension: .3 },
-    ...(ps.pace ? [{ label: "Your recent pace", data: lead([ps.act[n - 1]]).concat(ps.futPace), borderColor: "#e6a63c", borderDash: [6, 4], pointRadius: 0, tension: .3 }] : [])
+    { label: "Actual", data: pad(ps.act), borderColor: "#4256f4", backgroundColor: "rgba(66,86,244,.10)", fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: "#4256f4", borderWidth: 3 },
+    { label: "Plan", data: pad(ps.exp), borderColor: "#0f1733", borderWidth: 2, pointRadius: 0, tension: .3 },
+    { label: "Plan, next 12 months", data: lead([ps.exp[n - 1]]).concat(ps.futExp), borderColor: "#8a91ab", borderDash: [6, 4], pointRadius: 0, tension: .3 },
+    ...(ps.pace ? [{ label: "Your recent pace", data: lead([ps.act[n - 1]]).concat(ps.futPace), borderColor: "#f5a524", borderDash: [6, 4], pointRadius: 0, tension: .3 }] : [])
   ] }, options: { interaction: { mode: "index", intersect: false }, plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.y === null ? null : " " + ctx.dataset.label + ": " + gbp0(ctx.parsed.y) } } }, scales: { y: { ticks: moneyTick }, x: { grid: { display: false } } } } });
   mkChart("cPlanBars", { type: "bar", data: { labels: ps.months.map(k => monthLabel(k)), datasets: [
-    { label: "Planned", data: ps.planned, backgroundColor: "#2a3d33", borderRadius: 3 },
-    { label: "Saved", data: ps.saved, backgroundColor: ps.saved.map((v, i) => v >= ps.planned[i] ? "#3ec27f" : "#ef5b52"), borderRadius: 3 }
-  ] }, options: { plugins: { tooltip: moneyTip, legend: { labels: { generateLabels: c => [{ text: "Planned", fillStyle: "#2a3d33", strokeStyle: "#2a3d33", fontColor: "#8ea79a" }, { text: "Saved (green = hit the plan, red = short)", fillStyle: "#3ec27f", strokeStyle: "#3ec27f", fontColor: "#8ea79a" }] } } }, scales: { y: { ticks: moneyTick }, x: { grid: { display: false } } } } });
+    { label: "Planned", data: ps.planned, backgroundColor: "#dde3f3", borderRadius: 3 },
+    { label: "Saved", data: ps.saved, backgroundColor: ps.saved.map((v, i) => v >= ps.planned[i] ? "#16b47e" : "#f2555a"), borderRadius: 3 }
+  ] }, options: { plugins: { tooltip: moneyTip, legend: { labels: { generateLabels: c => [{ text: "Planned", fillStyle: "#dde3f3", strokeStyle: "#dde3f3", fontColor: "#8a91ab" }, { text: "Saved (green = hit the plan, red = short)", fillStyle: "#16b47e", strokeStyle: "#16b47e", fontColor: "#8a91ab" }] } } }, scales: { y: { ticks: moneyTick }, x: { grid: { display: false } } } } });
 }
+
+/* ----- pop-up boxes ("sheets") opened by tapping a tile ----- */
+const PRESETS = [
+  { key: "vuag", name: "Vanguard S&P 500 UCITS ETF (Acc)", short: "S&P 500 (VUAG)", ticker: "VUAG.L", color: "#4256f4", desc: "S&P 500, accumulating (dividends reinvested)" },
+  { key: "vusa", name: "Vanguard S&P 500 UCITS ETF (Dist)", short: "S&P 500 (VUSA)", ticker: "VUSA.L", color: "#f08a4b", desc: "S&P 500, distributing (dividends paid out)" },
+  { key: "sgln", name: "iShares Physical Gold (SGLN)", short: "Gold (SGLN)", ticker: "SGLN.L", color: "#e0a800", desc: "Physical gold" },
+  { key: "vwrp", name: "Vanguard FTSE All-World UCITS ETF (Acc)", short: "All-World (VWRP)", ticker: "VWRP.L", color: "#16b47e", desc: "The whole world's stock market, accumulating" }
+];
+const EXTRA_IDEAS = ["Sold something", "Refund", "Overtime", "Gift", "Cashback", "Bonus"];
+const sharesIn = b => num(b.price) ? num(b.amount) / num(b.price) : 0;
+const fmtShares = n => (+n.toFixed(4)).toLocaleString("en-GB", { maximumFractionDigits: 4 });
+function sheetWrap(title, label, body, sub) {
+  return `<div class="sheet-bg" data-closebg="1"><div class="sheet${ui.sheetFresh ? " anim" : ""}" role="dialog" aria-modal="true" aria-label="${esc(label)}">
+    <div class="sheet-head"><div><h3>${title}</h3>${sub ? `<p class="sub">${sub}</p>` : ""}</div><button type="button" class="close" data-close="1" id="sheetClose" aria-label="Close">×</button></div>
+    ${body}</div></div>`;
+}
+function sheetHTML() {
+  const s = ui.sheet; if (!s) return "";
+  const i = s.indexOf(":"), type = i < 0 ? s : s.slice(0, i), id = i < 0 ? "" : s.slice(i + 1);
+  const k = ui.month, m = monthData(k), ml = monthLabel(k, true);
+  const done = `<div class="sheet-actions"><button type="button" class="primary" data-close="1" id="sheetDone">Done</button></div>`;
+
+  if (type === "cat") {
+    const c = state.categories.find(c => c.id === id); if (!c) return "";
+    const ci = state.categories.indexOf(c);
+    const v = catSpend(c, k), b = num(c.budget), p = b ? v / b * 100 : 0;
+    const status = b ? (p > 100 ? `<span class="neg">${gbp(v - b)} over your ${gbp0(b)} limit</span>` : `${gbp(b - v)} left of your ${gbp0(b)} limit`) : `spent in ${ml}`;
+    const head = `<span class="dot" style="background:${catColor(c, ci)}"></span>${esc(c.name)}`;
+    const top = `<div class="sheet-big">${gbp(v)}</div><div class="hint">${status}</div>${b ? `<div class="meter ${p > 100 ? "over" : p >= 80 ? "warn" : ""}"><i style="width:${Math.min(100, p)}%"></i></div>` : ""}`;
+    const settings = `<div class="sheet-sec"><div class="row">
+        <label class="f">Monthly limit<span class="money"><input id="bg-${c.id}" data-budget="${c.id}" inputmode="decimal" value="${b || ""}" placeholder="No limit"></span></label>
+        ${c.linked ? "" : `<label class="f">Or type the month's total<span class="money"><input id="sp-${c.id}" data-spend="${c.id}" inputmode="decimal" value="${v ? v.toFixed(2) : ""}" placeholder="0.00"></span></label>`}
+      </div>
+      ${c.linked ? "" : `<label class="check" style="margin-top:12px"><input type="checkbox" data-fixed="${c.id}" id="fx-${c.id}"${c.fixed ? " checked" : ""}> It's a bill (the same each month, copied by "Copy bills")</label>`}
+      <div class="row" style="margin-top:14px;justify-content:space-between"><button type="button" class="small danger" data-delcat="${c.id}" id="del-${c.id}">Remove this category</button></div></div>`;
+    if (c.linked) return sheetWrap(head, c.name, `${top}<p class="hint">This fills in by itself from the Presents tab, in the month each present was bought.</p><a class="btn" href="#gifts">Go to Presents</a>${settings}`, ml);
+    const list = (m.payments || []).map((x, j) => ({ x, j })).filter(o => o.x.cat === c.id).sort((a, b) => b.x.date.localeCompare(a.x.date) || b.j - a.j).map(o => o.x);
+    return sheetWrap(head, c.name, `${top}
+      <form id="payForm" class="stack" style="margin-top:16px">
+        <input type="hidden" id="payCat" value="${c.id}">
+        <div class="row">
+          <label class="f" style="flex:1 1 150px">Amount<span class="money lg"><input id="payAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
+          <label class="f" style="flex:2 1 180px">What for (optional)<input id="payNote" maxlength="40" placeholder="e.g. Tesco, Shell" autocomplete="off"></label>
+        </div>
+        <button class="primary block" type="submit" id="btnPay">Add payment</button>
+      </form>
+      <div class="sheet-sec"><h4>Payments in ${ml}</h4>${list.length ? `<div class="tbl-wrap scroll-y" style="max-height:240px"><table><tbody>${list.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(x.note || "")}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delpay="${x.id}" id="dp-${x.id}" aria-label="Delete payment">×</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="hint" style="margin:0">None logged yet. Each payment you add goes on top of the total.</p>'}</div>
+      ${settings}`, ml);
+  }
+  if (type === "pay") {
+    const cats = state.categories.filter(c => !c.linked); if (!cats.length) return "";
+    if (!cats.find(c => c.id === ui.payCat)) ui.payCat = cats[0].id;
+    return sheetWrap("Log a payment", "Log a payment", `
+      <form id="payForm" class="stack">
+        <label class="f">Category<select id="payCat">${cats.map(c => `<option value="${c.id}"${c.id === ui.payCat ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+        <div class="row">
+          <label class="f" style="flex:1 1 150px">Amount<span class="money lg"><input id="payAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
+          <label class="f" style="flex:2 1 180px">What for (optional)<input id="payNote" maxlength="40" placeholder="e.g. Tesco, Shell" autocomplete="off"></label>
+        </div>
+        <button class="primary block" type="submit" id="btnPay">Add payment</button>
+      </form>
+      <p class="hint">It goes on top of that category's total for ${ml}. Tap a category box to see or delete its payments.</p>`, ml);
+  }
+  if (type === "inc") {
+    if (id === "extra") {
+      const list = (m.extras || []).map((x, j) => ({ x, j })).sort((a, b) => b.x.date.localeCompare(a.x.date) || b.j - a.j).map(o => o.x);
+      return sheetWrap('<span class="dot" style="background:#16b47e"></span>Extra money', "Extra money", `
+        <div class="sheet-big pos">${gbp(num(m.income.other))}</div><div class="hint">extra money in ${ml}</div>
+        <form id="extraForm" class="stack" style="margin-top:16px">
+          <div class="chips">${EXTRA_IDEAS.map((t, j) => `<button type="button" class="chip-btn" data-exnote="${esc(t)}" id="exi-${j}">${esc(t)}</button>`).join("")}</div>
+          <div class="row">
+            <label class="f" style="flex:1 1 150px">Amount<span class="money lg"><input id="exAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
+            <label class="f" style="flex:2 1 180px">What was it?<input id="exNote" maxlength="40" placeholder="e.g. Sold jacket on Vinted" autocomplete="off"></label>
+          </div>
+          <button class="primary block" type="submit" id="btnExtra">Add money in</button>
+        </form>
+        <div class="sheet-sec"><h4>Logged in ${ml}</h4>${list.length ? `<div class="tbl-wrap scroll-y" style="max-height:240px"><table><tbody>${list.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(x.note || "")}</td><td class="r pos"><b>+${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delextra="${x.id}" id="dx-${x.id}" aria-label="Delete">×</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="hint" style="margin:0">Nothing yet. Sold a jacket, got a refund, did overtime? Add it above and it counts as money in.</p>'}</div>
+        <div class="sheet-sec"><label class="f">Or type the month's total<span class="money"><input id="inc-other" data-inc="other" inputmode="decimal" value="${num(m.income.other) || ""}" placeholder="0.00"></span></label></div>`, ml);
+    }
+    const isOp = id === "op";
+    return sheetWrap(`<span class="dot" style="background:${isOp ? "#8b5cf6" : "#4256f4"}"></span>${isOp ? "Op pay" : "Base pay"}`, isOp ? "Op pay" : "Base pay", `
+      <label class="f">${isOp ? "Op / deployment pay" : "Take-home pay"} for ${ml}<span class="money lg"><input id="inc-${id}" data-inc="${id}" inputmode="decimal" value="${num(m.income[id]) || ""}" placeholder="0.00" autocomplete="off"></span></label>
+      <p class="hint">${isOp ? "Kept separate so the Overview can show how much of your Op money you put away." : "What actually lands in your bank after tax. \"Copy bills\" copies this from last month too."}</p>${done}`, ml);
+  }
+  if (type === "saved") {
+    const pl = plannedFor(k), saved = num(m.saved);
+    return sheetWrap('<span class="dot" style="background:#f5a524"></span>Saved / invested', "Saved or invested", `
+      <div class="row">
+        <label class="f">Moved to savings or investments<span class="money lg"><input id="inc-saved" data-saved="1" inputmode="decimal" value="${saved || ""}" placeholder="0.00" autocomplete="off"></span></label>
+        <label class="f">Planned to save<span class="money lg"><input id="inc-planned" data-planned="1" inputmode="decimal" value="${m.planned !== undefined && m.planned !== "" ? num(m.planned) : ""}" placeholder="${num(state.plan.monthly)}" autocomplete="off"></span></label>
+      </div>
+      ${pl ? `<p class="hint">${saved >= pl ? `<span class="pos">You hit your plan of ${gbp0(pl)}.</span>` : `${gbp0(pl - saved)} short of your plan of ${gbp0(pl)}.`} Leave "Planned" blank to use your usual ${gbp0(num(state.plan.monthly))} from the Progress tab.</p>` : ""}${done}`, ml);
+  }
+  if (type === "newcat") {
+    return sheetWrap("Add a category", "Add a category", `
+      <form id="addCat" class="stack">
+        <label class="f">Name<input id="newCatName" placeholder="e.g. Gym, Rent, Subscriptions" maxlength="40" autocomplete="off"></label>
+        <label class="f">Monthly limit (optional)<span class="money"><input id="newCatBudget" inputmode="decimal" placeholder="No limit"></span></label>
+        <label class="check"><input type="checkbox" id="newCatFixed"> It's a bill (the same each month)</label>
+        <button class="primary block" type="submit" id="btnAddCat">Add category</button>
+      </form>`);
+  }
+  if (type === "cash") {
+    const cash = latestAt(state.sp.cash.history, todayISO()), rate = num(state.sp.cash.rate);
+    return sheetWrap(`<span class="dot" style="background:${CASH_COL}"></span>Cash waiting to invest`, "Cash waiting to invest", `
+      <div class="sheet-big">${gbp(cash)}</div><div class="hint">${rate ? rate + "% interest, about " + gbp(cash * rate / 100) + " a year" : "Sitting in your investing account, not invested yet"}</div>
+      <form id="cashAdd" class="row" style="margin-top:16px">
+        <label class="f">Paid in more cash<span class="money"><input id="cashIn" inputmode="decimal" placeholder="e.g. 200"></span></label>
+        <button class="primary" type="submit" id="btnCashIn">Add</button>
+      </form>
+      <div class="sheet-sec"><form id="cashForm" class="row">
+        <label class="f">Cash balance now<span class="money"><input id="cashBal" inputmode="decimal" value="${cash ? cash.toFixed(2) : ""}" placeholder="0.00"></span></label>
+        <label class="f">Interest rate %<input id="cashRate" inputmode="decimal" value="${rate || ""}" placeholder="e.g. 4"></label>
+        <button type="submit" id="btnCash">Save</button>
+      </form>
+      <p class="hint">Buys you mark "paid from the cash waiting" come off this automatically.</p></div>`);
+  }
+  if (type === "newhold") {
+    const have = new Set(state.sp.holdings.map(h => (h.ticker || "").toUpperCase()));
+    return sheetWrap("Add an investment", "Add an investment", `
+      <div class="stack">${PRESETS.map(p => `<button type="button" class="preset" data-preset="${p.key}" id="pre-${p.key}"${have.has(p.ticker) ? " disabled" : ""}><span class="dot" style="background:${p.color}"></span><span><b>${esc(p.short)}</b><small>${esc(p.desc)}${have.has(p.ticker) ? " · already added" : ""}</small></span></button>`).join("")}</div>
+      <div class="sheet-sec"><h4>Something else</h4>
+      <form id="holdAdd" class="stack">
+        <div class="row">
+          <label class="f">Name<input id="nhName" maxlength="50" placeholder="e.g. Legal & General Global Tech" autocomplete="off"></label>
+          <label class="f">Yahoo ticker<input id="nhTicker" maxlength="20" placeholder="e.g. VWRP.L" autocomplete="off"></label>
+        </div>
+        <button type="submit" id="btnAddHold">Add</button>
+      </form>
+      <p class="hint">The ticker as Yahoo Finance UK shows it. London-listed funds end in .L. It's used to fetch the live price.</p></div>`);
+  }
+  if (type === "hold") {
+    const h = state.sp.holdings.find(h => h.id === id); if (!h) return "";
+    const st = holdStats(h), g = st.value - st.paid, gp = st.paid ? g / st.paid * 100 : 0;
+    const snap = latestSnap(h);
+    const live = (ui.live && ui.live[h.id]) || {};
+    const cash = latestAt(state.sp.cash.history, todayISO());
+    const hist = h.buys.map((b, j) => ({ b, j })).sort((a, c) => c.b.date.localeCompare(a.b.date) || (c.b.at || 0) - (a.b.at || 0) || c.j - a.j).map(o => o.b);
+    const counted = new Set(st.buys);
+    const snapSh = snap ? sharesIn(snap) : 0;
+    const last = st.buys.filter(b => !b.opening).slice(-1)[0];
+    return sheetWrap(`<span class="dot" style="background:${h.color}"></span>${esc(h.short || h.name)}`, h.short || h.name, `
+      <div class="sheet-big">${gbp(st.value)}</div>
+      <div class="hint">${st.shares ? `${fmtShares(st.shares)} shares × ${gbp(st.price)}${h.priceDate ? " (price from " + shortDate(h.priceDate) + ")" : ""}` : "Add what you own below."}</div>
+      ${st.shares ? `<div class="pills"><span class="pill ${g >= 0 ? "g" : "r"}">${g >= 0 ? "+" : "−"}${gbp(Math.abs(g))} (${pct(gp)})</span><span class="pill n">Put in ${gbp(st.paid)}</span><span class="pill n">Average ${gbp(st.avg)} a share</span></div>` : ""}
+      <div class="row" style="margin-top:12px;align-items:center"><button type="button" class="small" data-live="${h.id}" id="live-${h.id}"${live.busy ? " disabled" : ""}>${live.busy ? "Fetching…" : "Get live price"}</button><span class="hint ${live.ok ? "pos" : live.msg && !live.busy ? "warn-t" : ""}" style="flex:1 1 200px">${esc(live.msg || (h.ticker ? "Yahoo Finance: " + h.ticker : "No ticker set (see Name and ticker below)"))}</span></div>
+
+      <div class="sheet-sec"><h4>What you own right now</h4>
+        <p class="hint" style="margin:-4px 0 12px">Copy these from your trading app. Saving this replaces anything logged before today, so nothing gets counted twice.</p>
+        <form class="stack" data-openform="${h.id}">
+          <div class="row">
+            <label class="f">Number of shares<input id="os-${h.id}" inputmode="decimal" value="${snap ? +snapSh.toFixed(6) : ""}" placeholder="e.g. 12.3456" autocomplete="off"></label>
+            <label class="f">Total you've paid<span class="money"><input id="ot-${h.id}" inputmode="decimal" value="${snap ? num(snap.amount).toFixed(2) : ""}" placeholder="e.g. 1250.00" autocomplete="off"></span></label>
+          </div>
+          <label class="f">or your average price per share<span class="money"><input id="oa-${h.id}" inputmode="decimal" value="${snap ? +num(snap.price).toFixed(4) : ""}" placeholder="e.g. 98.40" autocomplete="off"></span></label>
+          <button class="primary block" type="submit" id="ob-${h.id}">Save what I own</button>
+        </form>
+      </div>
+
+      <div class="sheet-sec"><h4>Bought more?</h4>
+        <form class="stack" data-buyform="${h.id}">
+          <div class="row">
+            <label class="f">Amount<span class="money"><input id="ba-${h.id}" inputmode="decimal" placeholder="${last ? num(last.amount).toFixed(2) : "50.00"}" autocomplete="off"></span></label>
+            <label class="f">Price per share<span class="money"><input id="bp-${h.id}" inputmode="decimal" placeholder="${st.price ? st.price.toFixed(2) : "0.00"}" autocomplete="off"></span></label>
+            <label class="f">Date<input type="date" id="bd-${h.id}" value="${todayISO()}"></label>
+          </div>
+          <label class="check"><input type="checkbox" id="bc-${h.id}"${cash > 0 ? " checked" : ""}> Paid from the cash waiting (${gbp(cash)})</label>
+          <button class="primary block" type="submit" id="bb-${h.id}">Add buy</button>
+        </form>
+        <p class="hint">Leave the price blank to use ${st.price ? gbp(st.price) : "the latest price"}.</p>
+      </div>
+
+      ${hist.length ? `<div class="sheet-sec"><h4>History</h4><div class="tbl-wrap scroll-y" style="max-height:260px"><table><thead><tr><th>Date</th><th></th><th class="r">Paid</th><th class="r">Price</th><th class="r">Shares</th><th></th></tr></thead><tbody>${hist.map(b => {
+        const on = counted.has(b);
+        return `<tr class="${on ? "" : "muted"}"><td>${shortDate(b.date)}</td><td>${b.opening ? '<span class="pill b">What you own</span>' : on ? "Buy" : '<span class="pill n" title="Already included in what you own">Included above</span>'}</td><td class="r">${gbp(num(b.amount))}</td><td class="r">${gbp(num(b.price))}</td><td class="r">${fmtShares(sharesIn(b))}</td><td class="r" style="width:34px"><button class="x" data-delbuy="${h.id}|${b.id}" id="db-${b.id}" aria-label="Delete">×</button></td></tr>`;
+      }).join("")}</tbody></table></div></div>` : ""}
+
+      <details class="more" data-pot-details="h-${h.id}"${ui.open.has("h-" + h.id) ? " open" : ""}><summary>Name and ticker</summary>
+        <div class="row">
+          <label class="f">Name<input id="hn-${h.id}" data-hid="${h.id}" data-hf="name" value="${esc(h.name)}" maxlength="50"></label>
+          <label class="f">Short name<input id="hs-${h.id}" data-hid="${h.id}" data-hf="short" value="${esc(h.short || "")}" maxlength="20"></label>
+          <label class="f">Yahoo ticker<input id="ht-${h.id}" data-hid="${h.id}" data-hf="ticker" value="${esc(h.ticker || "")}" maxlength="20" placeholder="e.g. VUAG.L"></label>
+        </div>
+        <div style="margin-top:12px"><button type="button" class="small danger" data-delhold="${h.id}" id="dhold-${h.id}">Remove this investment</button></div>
+        <p class="hint">Removed one by mistake? Add it again from "Add an investment".</p>
+      </details>`);
+  }
+  return "";
+}
+document.addEventListener("click", e => {
+  const o = e.target.closest("[data-sheet]");
+  if (o && !o.disabled) { ui.sheet = o.dataset.sheet; ui.sheetFresh = true; render(); return; }
+  if (e.target.closest("button[data-close]") || (e.target.dataset && e.target.dataset.closebg)) { ui.sheet = null; render(); return; }
+  const ch = e.target.closest("[data-exnote]");
+  if (ch) { const n = $("#exNote"); if (n) n.value = ch.dataset.exnote; const a = $("#exAmt"); if (a) a.focus(); return; }
+  const pr = e.target.closest("[data-preset]");
+  if (pr) {
+    const p = PRESETS.find(p => p.key === pr.dataset.preset); if (!p) return;
+    const ex = state.sp.holdings.find(h => (h.ticker || "").toUpperCase() === p.ticker);
+    if (ex) { ui.sheet = "hold:" + ex.id; render(); return; }
+    const h = { id: "h" + uid(), name: p.name, short: p.short, ticker: p.ticker, color: p.color, buys: [], currentPrice: 0, priceDate: "" };
+    state.sp.holdings.push(h); ui.hold = h.id; ui.sheet = "hold:" + h.id; ui.sheetFresh = true;
+    save(); render(); toast("Added " + p.short + ". Now add what you own.");
+    liveUpdate([h]);
+  }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && ui.sheet) { ui.sheet = null; render(); } });
+document.addEventListener("submit", e => {
+  if (e.target.id !== "extraForm") return;
+  e.preventDefault(); e.stopPropagation();
+  const amt = num($("#exAmt").value), note = $("#exNote").value.trim();
+  if (!(amt > 0)) { toast("Type an amount first"); $("#exAmt").focus(); return; }
+  const m = ensureMonth(ui.month);
+  m.extras = m.extras || [];
+  const date = ui.month === monthKey(new Date()) ? todayISO() : ui.month + "-01";
+  m.extras.push({ id: uid(), date, amount: +amt.toFixed(2), note });
+  m.income.other = +(num(m.income.other) + amt).toFixed(2);
+  save(); render(); toast("+" + gbp(amt) + " added to money in");
+}, true);
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-delextra]"); if (!b) return;
+  const m = ensureMonth(ui.month);
+  const x = (m.extras || []).find(x => x.id === b.dataset.delextra); if (!x) return;
+  m.extras = m.extras.filter(y => y !== x);
+  m.income.other = Math.max(0, +(num(m.income.other) - num(x.amount)).toFixed(2));
+  save(); render(); toast("Removed");
+});
+// Fill in total paid / average price from each other as you type
+document.addEventListener("input", e => {
+  const t = e.target; if (!t.id || !/^o[sta]-/.test(t.id)) return;
+  const id = t.id.slice(3), sh = num($("#os-" + id).value), tot = $("#ot-" + id), av = $("#oa-" + id);
+  if (!sh) return;
+  if (t.id.startsWith("ot-")) av.value = num(tot.value) ? +(num(tot.value) / sh).toFixed(4) : "";
+  else if (num(av.value)) tot.value = (num(av.value) * sh).toFixed(2);
+});
 
 const VIEWS = { overview: [viewOverview, drawOverview], month: [viewMonth, drawMonth], wealth: [viewWealth, drawWealth], sp500: [viewSP, drawSP], progress: [viewProgress, drawProgress], settings: [viewSettings, () => {}], gifts: [viewGifts, () => {}] };
 function render() {
@@ -1108,15 +1365,23 @@ function render() {
   const [v, d] = VIEWS[ui.view];
   const note = ui.view === "settings" ? "" : ro ? `<div class="who-note"><b>Together:</b> ${HH.people.map(p => esc(p.name)).join(" + ")}, added up. Switch to one person at the top to change anything.</div>`
     : `<div class="who-note">Showing <b>${esc(personName(ui.who))}'s</b> money. Changes are saved and shared automatically.</div>`;
-  $("#app").innerHTML = (tokenProblem && ui.view !== "settings" ? '<div class="banner"><span><b>Changes are not saving.</b> GitHub stopped accepting the access token. <a href="#settings" class="pos">Fix it in Settings</a>.</span></div>' : "") + note + v();
+  const sheet = sheetHTML(); if (!sheet) ui.sheet = null;
+  document.body.classList.toggle("sheet-open", !!sheet);
+  $("#app").innerHTML = (tokenProblem && ui.view !== "settings" ? '<div class="banner"><span><b>Changes are not saving.</b> GitHub stopped accepting the access token. <a href="#settings" class="pos">Fix it in Settings</a>.</span></div>' : "") + note + v() + sheet;
+  ui.sheetFresh = false;
   if (ro) $("#app").querySelectorAll("input, select").forEach(el => { if (!["fWeekly", "fRate", "fMonthlyNum"].includes(el.id)) el.disabled = true; });
   renderWho();
   document.querySelectorAll("#tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === ui.view ? "page" : "false"));
+  $("#gearLink").setAttribute("aria-current", ui.view === "settings" ? "page" : "false");
   d();
   if (focusId) { const el = document.getElementById(focusId); if (el && el !== document.body) { try { el.focus({ preventScroll: true }); } catch (e) {} } }
 }
-function route() { const h = location.hash.replace("#", ""); ui.view = VIEWS[h] ? h : "overview"; render(); }
-function later() { setTimeout(render, 0); }
+function route() { const h = location.hash.replace("#", ""); ui.view = VIEWS[h] ? h : "overview"; ui.sheet = null; render(); window.scrollTo(0, 0); }
+let ptrDown = false, renderQueued = false;
+document.addEventListener("pointerdown", () => { ptrDown = true; }, true);
+const ptrUp = () => { ptrDown = false; if (renderQueued) { renderQueued = false; setTimeout(render, 60); } };
+document.addEventListener("pointerup", ptrUp, true); document.addEventListener("pointercancel", ptrUp, true);
+function later() { if (ptrDown) { renderQueued = true; return; } setTimeout(render, 0); }
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2200); }
 
 /* ---------- events ---------- */
@@ -1125,6 +1390,7 @@ app.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dat
 app.addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.spend) { const m = ensureMonth(ui.month); m.spend[t.dataset.spend] = num(t.value); save(); later(); }
+  else if (t.dataset.fixed) { const c = state.categories.find(c => c.id === t.dataset.fixed); if (c) { c.fixed = t.checked; save(); later(); } }
   else if (t.dataset.budget) { const c = state.categories.find(c => c.id === t.dataset.budget); if (c) { c.budget = num(t.value); save(); later(); } }
   else if (t.dataset.inc) { const m = ensureMonth(ui.month); m.income[t.dataset.inc] = num(t.value); save(); later(); }
   else if (t.dataset.saved) { const m = ensureMonth(ui.month); m.saved = num(t.value); save(); later(); }
@@ -1170,7 +1436,9 @@ app.addEventListener("submit", e => {
   const f = e.target;
   if (f.id === "addCat") {
     const name = $("#newCatName").value.trim(); if (!name) { $("#newCatName").focus(); return; }
-    state.categories.push({ id: "c" + uid(), name, budget: num($("#newCatBudget").value) });
+    const nc = { id: "c" + uid(), name, budget: num($("#newCatBudget").value) };
+    if ($("#newCatFixed") && $("#newCatFixed").checked) nc.fixed = true;
+    state.categories.push(nc); ui.sheet = null;
     save(); render(); toast("Added " + name);
   } else if (f.dataset.potform) {
     const p = state.pots.find(p => p.id === f.dataset.potform); if (!p) return;
@@ -1205,12 +1473,26 @@ app.addEventListener("submit", e => {
     save(); render(); toast("Added " + gbp(add) + " to cash");
   } else if (f.dataset.openform) {
     const h = state.sp.holdings.find(h => h.id === f.dataset.openform); if (!h) return;
-    const shares = num($("#os-" + h.id).value), avg = num($("#oa-" + h.id).value), date = $("#od-" + h.id).value || todayISO();
-    if (shares <= 0 || avg <= 0) { toast("Enter how many shares and the average price you paid"); return; }
+    const shares = num($("#os-" + h.id).value), tot = num($("#ot-" + h.id).value), avg = num($("#oa-" + h.id).value);
+    const total = +(tot || avg * shares).toFixed(2);
+    if (shares <= 0 || total <= 0) { toast("Enter your number of shares and what you paid in total (or your average price)"); return; }
     h.buys = h.buys.filter(b => !b.opening);
-    h.buys.push({ id: uid(), date, amount: +(shares * avg).toFixed(2), price: avg, opening: true, fromCash: false });
-    if (!num(h.currentPrice)) { h.currentPrice = avg; h.priceDate = date; }
-    save(); render(); toast((h.short || h.name) + ": starting holding saved");
+    h.buys.push({ id: uid(), date: todayISO(), at: Date.now(), amount: total, price: total / shares, opening: true, fromCash: false });
+    if (!num(h.currentPrice)) { h.currentPrice = total / shares; h.priceDate = todayISO(); }
+    save(); render(); toast((h.short || h.name) + ": " + fmtShares(shares) + " shares saved");
+    if ((h.ticker || "").trim()) liveUpdate([h]);
+  } else if (f.dataset.buyform) {
+    const h = state.sp.holdings.find(h => h.id === f.dataset.buyform); if (!h) return;
+    const amount = num($("#ba-" + h.id).value), date = $("#bd-" + h.id).value || todayISO();
+    const price = num($("#bp-" + h.id).value) || holdStats(h).price;
+    if (amount <= 0) { toast("Type how much you put in"); return; }
+    if (price <= 0) { toast("Type the price per share"); return; }
+    const fromCash = $("#bc-" + h.id).checked;
+    h.buys.push({ id: uid(), date, at: Date.now(), amount, price, fromCash });
+    if (fromCash) setCash(latestAt(state.sp.cash.history, todayISO()) - amount);
+    if (!num(h.currentPrice)) { h.currentPrice = price; h.priceDate = date; }
+    ui.hold = h.id;
+    save(); render(); toast((h.short || h.name) + ": " + fmtShares(amount / price) + " shares added");
   } else if (f.dataset.priceform) {
     const h = state.sp.holdings.find(h => h.id === f.dataset.priceform); if (!h) return;
     h.currentPrice = num($("#hp-" + h.id).value); h.priceDate = $("#hd-" + h.id).value || todayISO();
@@ -1218,9 +1500,11 @@ app.addEventListener("submit", e => {
   } else if (f.id === "holdAdd") {
     const name = $("#nhName").value.trim(); if (!name) { $("#nhName").focus(); return; }
     const n = state.sp.holdings.length;
-    const h = { id: "h" + uid(), name, short: $("#nhShort").value.trim(), color: HOLD_PALETTE[n % HOLD_PALETTE.length], buys: [], currentPrice: 0, priceDate: todayISO() };
-    state.sp.holdings.push(h); ui.hold = h.id;
-    save(); render(); toast("Added " + name);
+    const tk = ($("#nhTicker") ? $("#nhTicker").value : "").trim().toUpperCase();
+    const h = { id: "h" + uid(), name, short: name.length > 20 ? (tk || name.slice(0, 20)) : name, ticker: tk, color: HOLD_PALETTE[n % HOLD_PALETTE.length], buys: [], currentPrice: 0, priceDate: "" };
+    state.sp.holdings.push(h); ui.hold = h.id; ui.sheet = "hold:" + h.id;
+    save(); render(); toast("Added " + name + ". Now add what you own.");
+    if (tk) liveUpdate([h]);
   } else if (f.id === "giftForm") {
     const name = $("#gName").value.trim(); if (!name) return;
     const type = $("#gType").value;
@@ -1242,11 +1526,11 @@ app.addEventListener("click", e => {
   if (b.dataset.go) { location.hash = b.dataset.go; return; }
   if (b.dataset.mnav) { ui.month = shiftMonth(ui.month, Number(b.dataset.mnav)); render(); return; }
   if (b.dataset.years) { state.forecast.years = Number(b.dataset.years); save(); render(); return; }
-  if (b.dataset.delcat) { if (!confirmFirst(b)) return; state.categories = state.categories.filter(c => c.id !== b.dataset.delcat); save(); render(); return; }
+  if (b.dataset.delcat) { if (!confirmFirst(b)) return; ui.sheet = null; state.categories = state.categories.filter(c => c.id !== b.dataset.delcat); save(); render(); return; }
   if (b.dataset.hold) { ui.hold = b.dataset.hold; render(); return; }
   if (b.dataset.clearopen) { if (!confirmFirst(b)) return; const h = state.sp.holdings.find(h => h.id === b.dataset.clearopen); if (h) h.buys = h.buys.filter(x => !x.opening); save(); render(); return; }
   if (b.dataset.delbuy) { if (!confirmFirst(b)) return; const [hid, bid] = b.dataset.delbuy.split("|"); const h = state.sp.holdings.find(h => h.id === hid); if (h) h.buys = h.buys.filter(x => x.id !== bid); save(); render(); return; }
-  if (b.dataset.delhold) { if (!confirmFirst(b)) return; state.sp.holdings = state.sp.holdings.filter(h => h.id !== b.dataset.delhold); save(); render(); return; }
+  if (b.dataset.delhold) { if (!confirmFirst(b)) return; ui.sheet = null; state.sp.holdings = state.sp.holdings.filter(h => h.id !== b.dataset.delhold); save(); render(); return; }
   if (b.dataset.repeat) {
     const h = state.sp.holdings.find(h => h.id === b.dataset.repeat); if (!h) return;
     const st = holdStats(h); const last = st.buys[st.buys.length - 1]; if (!last) return;
