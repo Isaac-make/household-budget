@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-24b">
+<meta name="build" content="2026-11-24c">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -551,7 +551,6 @@ const slicePct = {
   }
 };
 if (window.Chart) {
-  Chart.register(slicePct);
   Chart.defaults.color = "#8a91ab";
   Chart.defaults.borderColor = "#eceff6";
   Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
@@ -572,17 +571,7 @@ const moneyTick = { callback: v => "£" + Number(v).toLocaleString("en-GB", { ma
 const moneyTip = { callbacks: { label: ctx => " " + (ctx.dataset.label ? ctx.dataset.label + ": " : "") + gbp(ctx.parsed.y) } };
 const pieTip = { callbacks: { label: ctx => { const t = ctx.dataset.data.reduce((a, b) => a + b, 0); return " " + ctx.label + ": " + gbp(ctx.parsed) + " (" + (t ? (ctx.parsed / t * 100).toFixed(1) : 0) + "%)"; } } };
 // Legend entries that read "Fuel · 23%"
-const pctLegend = {
-  position: "right",
-  labels: {
-    generateLabels(chart) {
-      const base = Chart.overrides[chart.config.type].plugins.legend.labels.generateLabels(chart);
-      const d = chart.data.datasets[0].data, t = d.reduce((a, b) => a + b, 0);
-      base.forEach((l, i) => { l.text = l.text + "  " + (t ? Math.round(d[i] / t * 100) : 0) + "%"; });
-      return base;
-    }
-  }
-};
+const pctLegend = { position: "right" };
 function pieChart(id, labels, values, colors, cutout) {
   return mkChart(id, { type: cutout ? "doughnut" : "pie", data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: "#ffffff", borderWidth: 2 }] }, options: { cutout: cutout || 0, plugins: { legend: pctLegend, tooltip: pieTip } } });
 }
@@ -657,7 +646,6 @@ function viewOverview() {
     <div class="card"><h3>Where this month's money went</h3>${sp ? '<div class="chart-box"><canvas id="cSpendPie" aria-label="Spending by category this month"></canvas></div>' : '<div class="empty">No spending logged this month yet.</div>'}</div>
     <div class="card"><h3>What you've got</h3>${w.total ? '<div class="chart-box"><canvas id="cWealthPie" aria-label="Wealth split"></canvas></div>' : '<div class="empty">Add your savings and investments to see them here.</div>'}</div>
     <div class="card span2"><h3>Net worth over time</h3><div class="chart-box"><canvas id="cNetWorth" aria-label="Net worth by month"></canvas></div></div>
-    <div class="card span2"><h3>Money in vs spending</h3><div class="chart-box"><canvas id="cIncSpend" aria-label="Money in and spending by month"></canvas></div></div>
     <div class="card span2"><h3>Op pay</h3>
       ${opTotal ? `<div class="grid g3">
         <div class="kpi"><div class="label">Op pay earned</div><div class="value">${gbp0(opTotal)}</div><div class="note">Across ${opMonths} month${opMonths === 1 ? "" : "s"} on Op</div></div>
@@ -1121,6 +1109,40 @@ function drawProgress() {
 }
 
 /* ----- pop-up boxes ("sheets") opened by tapping a tile ----- */
+let SYMBOLS = null;
+async function loadSymbols() {
+  if (!SYMBOLS) { try { SYMBOLS = await (await fetch("symbols.json")).json(); } catch (e) { SYMBOLS = []; } }
+  return SYMBOLS;
+}
+function shortFor(name, sym) {
+  const c = name.replace(/\b(UCITS|ETF|ETC|PLC|plc|Ordinary Shares|Holdings|Group)\b/g, "").replace(/\s+/g, " ").trim();
+  return c.length <= 22 ? c : sym.replace(/\.L$/, "");
+}
+async function searchHoldings(q) {
+  const box = $("#holdResults"); if (!box) return;
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) { box.innerHTML = '<p class="hint" style="margin:0">Funds and shares listed in London. Tap one to add it.</p>'; return; }
+  const list = await loadSymbols();
+  if ($("#holdSearch") && $("#holdSearch").value !== q) return;
+  const have = new Set(state.sp.holdings.map(h => (h.ticker || "").toUpperCase()));
+  const hits = list.map(x => { const hay = (x.n + " " + x.s).toLowerCase(); if (!words.every(w => hay.includes(w))) return null; const n = x.n.toLowerCase(); return { x, score: (n.startsWith(words[0]) ? 0 : 1) + (x.s.toLowerCase().startsWith(words[0]) ? -1 : 0) + n.length / 1000 }; })
+    .filter(Boolean).sort((a, b) => a.score - b.score).slice(0, 12).map(o => o.x);
+  const asTicker = /^[A-Za-z0-9.]{2,12}$/.test(q.trim()) ? q.trim().toUpperCase() + (q.includes(".") ? "" : ".L") : "";
+  box.innerHTML = (hits.length ? hits.map((x, j) => `<button type="button" class="preset" data-pick="${esc(x.s)}" id="pick-${j}"${have.has(x.s) ? " disabled" : ""}><span class="dot" style="background:${x.t === "Fund" ? "#4256f4" : "#16b47e"}"></span><span><b>${esc(x.n)}</b><small>${esc(x.s.replace(/\.L$/, ""))} · ${x.t}${have.has(x.s) ? " · already added" : ""}</small></span></button>`).join("")
+    : '<p class="hint" style="margin:0">Nothing found with that name. Try fewer words.</p>')
+    + (asTicker && !hits.find(x => x.s === asTicker) ? `<button type="button" class="small ghost" data-pick="${esc(asTicker)}" id="pick-raw" style="justify-self:start">Add ${esc(asTicker)} as a ticker</button>` : "");
+}
+document.addEventListener("input", e => { if (e.target.id === "holdSearch") searchHoldings(e.target.value); });
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-pick]"); if (!b || b.disabled) return;
+  const sym = b.dataset.pick, hit = (SYMBOLS || []).find(x => x.s === sym);
+  const name = hit ? hit.n : sym;
+  const n = state.sp.holdings.length;
+  const h = { id: "h" + uid(), name, short: shortFor(name, sym), ticker: sym, color: HOLD_PALETTE[n % HOLD_PALETTE.length], buys: [], currentPrice: 0, priceDate: "" };
+  state.sp.holdings.push(h); ui.hold = h.id; ui.sheet = "hold:" + h.id; ui.sheetFresh = true;
+  save(); render(); toast("Added " + h.short + ". Now add what you own.");
+  liveUpdate([h]);
+});
 const PRESETS = [
   { key: "vuag", name: "Vanguard S&P 500 UCITS ETF (Acc)", short: "S&P 500 (VUAG)", ticker: "VUAG.L", color: "#4256f4", desc: "S&P 500, accumulating (dividends reinvested)" },
   { key: "vusa", name: "Vanguard S&P 500 UCITS ETF (Dist)", short: "S&P 500 (VUSA)", ticker: "VUSA.L", color: "#f08a4b", desc: "S&P 500, distributing (dividends paid out)" },
@@ -1240,15 +1262,10 @@ function sheetHTML() {
     const have = new Set(state.sp.holdings.map(h => (h.ticker || "").toUpperCase()));
     return sheetWrap("Add an investment", "Add an investment", `
       <div class="stack">${PRESETS.map(p => `<button type="button" class="preset" data-preset="${p.key}" id="pre-${p.key}"${have.has(p.ticker) ? " disabled" : ""}><span class="dot" style="background:${p.color}"></span><span><b>${esc(p.short)}</b><small>${esc(p.desc)}${have.has(p.ticker) ? " · already added" : ""}</small></span></button>`).join("")}</div>
-      <div class="sheet-sec"><h4>Something else</h4>
-      <form id="holdAdd" class="stack">
-        <div class="row">
-          <label class="f">Name<input id="nhName" maxlength="50" placeholder="e.g. Legal & General Global Tech" autocomplete="off"></label>
-          <label class="f">Yahoo ticker<input id="nhTicker" maxlength="20" placeholder="e.g. VWRP.L" autocomplete="off"></label>
-        </div>
-        <button type="submit" id="btnAddHold">Add</button>
-      </form>
-      <p class="hint">The ticker as Yahoo Finance UK shows it. London-listed funds end in .L. It's used to fetch the live price.</p></div>`);
+      <div class="sheet-sec"><h4>Search for something else</h4>
+        <input id="holdSearch" type="search" placeholder="Type a name, e.g. Tesco, FTSE 100, Nasdaq" autocomplete="off" aria-label="Search funds and shares">
+        <div id="holdResults" class="stack" style="margin-top:10px"><p class="hint" style="margin:0">Funds and shares listed in London. Tap one to add it.</p></div>
+      </div>`);
   }
   if (type === "hold") {
     const h = state.sp.holdings.find(h => h.id === id); if (!h) return "";
