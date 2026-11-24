@@ -7,13 +7,14 @@ on:
   push:
     paths:
       - tickers.json               # fetch straight away when a new ticker is added
+      - refresh.json               # the app asks for fresh prices by saving this file
 
 permissions:
   contents: write
 
 concurrency:
   group: prices
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   prices:
