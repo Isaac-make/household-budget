@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28e">
+<meta name="build" content="2026-11-28f">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -879,7 +879,7 @@ function viewWealth() {
     <button class="primary" data-act="setup-accounts" id="btnSetupAcc">Add ${miss.length} account${miss.length === 1 ? "" : "s"}</button>
     <p class="hint" style="margin:10px 0 0">Trading 212 Stocks ISA lives on the Investments tab.${/isaac/i.test(personName(ui.who)) ? "" : " The joint account is on Isaac's list so it isn't counted twice."}</p></div>` : ""}
   <div class="grid g3">
-    <div class="card kpi"><div class="kpi-top"><span class="label">In your accounts</span></div><div class="value">${gbp0(w.owned)}</div><div class="note">Plus ${gbp0(w.sp + w.cash)} in Trading 212</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Total after credit cards</span></div><div class="value ${w.owned - w.owed < 0 ? "neg" : ""}">${gbp0(w.owned - w.owed)}</div><div class="note">${gbp0(w.owned)} in your accounts${w.owed ? " minus " + gbp0(w.owed) + " owed" : ""}. Plus ${gbp0(w.sp + w.cash)} in Trading 212</div></div>
     <div class="card kpi"><div class="kpi-top"><span class="label">Owed on credit cards</span></div><div class="value ${w.owed > 0 ? "neg" : ""}">${gbp0(w.owed)}</div><div class="note">${w.owed > 0 ? "Taken off your net worth" : "Nothing owed"}</div></div>
     <div class="card kpi"><div class="kpi-top"><span class="label">Interest you're earning</span></div><div class="value pos">${gbp0(yearly)}<span style="font-size:1rem;color:var(--muted)"> / yr</span></div><div class="note">About ${gbp(yearly / 12)} a month</div></div>
   </div>
