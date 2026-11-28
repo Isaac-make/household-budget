@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28f">
+<meta name="build" content="2026-11-28g">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -863,6 +863,13 @@ function accTile(p) {
     <span class="tile-note">${isCredit(p) ? (bal > 0 ? "Owed · " : bal < 0 ? "In credit · " : "") : ""}${up ? (ago === 0 ? "Updated today" : ago === 1 ? "Updated yesterday" : "Updated " + ago + " days ago") : "Tap to add the balance"}</span>
   </button>`;
 }
+function t212Tile(cash) {
+  const rate = num(state.sp.cash.rate), up = state.sp.cash.history.reduce((d, e) => e.date > d ? e.date : d, ""), ago = up ? -daysUntil(up) : null;
+  return `<button type="button" class="tile" data-sheet="cash" id="tile-t212cash">
+    <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${CASH_COL}"></i><span class="t">Trading 212 cash</span></span>${rate ? `<span class="badge up">${rate}%</span>` : ""}</span>
+    <span class="tile-val">${gbp(cash)}</span>
+    <span class="tile-note">${up ? (ago === 0 ? "Updated today" : ago === 1 ? "Updated yesterday" : "Updated " + ago + " days ago") : "Cash in your Stocks ISA, not invested"}</span></button>`;
+}
 function viewWealth() {
   const w = wealthNow();
   const g = state.goal, gp = num(g.target) ? Math.max(0, Math.min(1, w.total / num(g.target))) : 0;
@@ -879,11 +886,11 @@ function viewWealth() {
     <button class="primary" data-act="setup-accounts" id="btnSetupAcc">Add ${miss.length} account${miss.length === 1 ? "" : "s"}</button>
     <p class="hint" style="margin:10px 0 0">Trading 212 Stocks ISA lives on the Investments tab.${/isaac/i.test(personName(ui.who)) ? "" : " The joint account is on Isaac's list so it isn't counted twice."}</p></div>` : ""}
   <div class="grid g3">
-    <div class="card kpi"><div class="kpi-top"><span class="label">Total after credit cards</span></div><div class="value ${w.owned - w.owed < 0 ? "neg" : ""}">${gbp0(w.owned - w.owed)}</div><div class="note">${gbp0(w.owned)} in your accounts${w.owed ? " minus " + gbp0(w.owed) + " owed" : ""}. Plus ${gbp0(w.sp + w.cash)} in Trading 212</div></div>
+    <div class="card kpi"><div class="kpi-top"><span class="label">Total after credit cards</span></div><div class="value ${w.owned + w.cash - w.owed < 0 ? "neg" : ""}">${gbp0(w.owned + w.cash - w.owed)}</div><div class="note">${gbp0(w.owned + w.cash)} in your accounts and Trading 212 cash${w.owed ? " minus " + gbp0(w.owed) + " owed" : ""}. Plus ${gbp0(w.sp)} invested</div></div>
     <div class="card kpi"><div class="kpi-top"><span class="label">Owed on credit cards</span></div><div class="value ${w.owed > 0 ? "neg" : ""}">${gbp0(w.owed)}</div><div class="note">${w.owed > 0 ? "Taken off your net worth" : "Nothing owed"}</div></div>
     <div class="card kpi"><div class="kpi-top"><span class="label">Interest you're earning</span></div><div class="value pos">${gbp0(yearly)}<span style="font-size:1rem;color:var(--muted)"> / yr</span></div><div class="note">About ${gbp(yearly / 12)} a month</div></div>
   </div>
-  ${groups.map(([title, f]) => { const list = state.pots.filter(f); return list.length ? `<div class="section-head"><h3>${title}</h3></div><div class="tiles">${list.map(accTile).join("")}</div>` : ""; }).join("")}
+  ${groups.map(([title, f], gi) => { const list = state.pots.filter(f); const extra = gi === 1 ? t212Tile(w.cash) : ""; return list.length || extra ? `<div class="section-head"><h3>${title}</h3></div><div class="tiles">${list.map(accTile).join("")}${extra}</div>` : ""; }).join("")}
   <div class="tiles" style="margin-top:14px"><button type="button" class="tile add" data-sheet="newpot" id="tile-newpot"><span class="plus">+</span>Add an account</button></div>
   <div class="grid g2" style="margin-top:16px">
     ${moves.length ? `<div class="card span2"><h3>Money moved</h3><div class="tbl-wrap"><table><tbody>${moves.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(endName(x.from))} → ${esc(endName(x.to))}${x.saved ? ' <span class="pill g">Saved</span>' : ""}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delmove="${x.id}" id="dm-${x.id}" aria-label="Undo this move">×</button></td></tr>`).join("")}</tbody></table></div><p class="hint">× undoes a move and puts the balances back.</p></div>` : ""}
@@ -1474,7 +1481,7 @@ function sheetHTML() {
   }
   if (type === "cash") {
     const cash = latestAt(state.sp.cash.history, todayISO()), rate = num(state.sp.cash.rate);
-    return sheetWrap(`<span class="dot" style="background:${CASH_COL}"></span>Cash waiting to invest`, "Cash waiting to invest", `
+    return sheetWrap(`<span class="dot" style="background:${CASH_COL}"></span>Trading 212 cash`, "Trading 212 cash", `
       <div class="sheet-big">${gbp(cash)}</div><div class="hint">${rate ? rate + "% interest, about " + gbp(cash * rate / 100) + " a year" : "Sitting in your investing account, not invested yet"}</div>
       <form id="cashAdd" class="row" style="margin-top:16px">
         <label class="f">Paid in more cash<span class="money"><input id="cashIn" inputmode="decimal" placeholder="e.g. 200"></span></label>
