@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28g">
+<meta name="build" content="2026-11-28h">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1354,6 +1354,7 @@ const fmtShares = n => (+n.toFixed(4)).toLocaleString("en-GB", { maximumFraction
 function sheetWrap(title, label, body, sub) {
   return `<div class="sheet-bg" data-closebg="1"><div class="sheet${ui.sheetFresh ? " anim" : ""}" role="dialog" aria-modal="true" aria-label="${esc(label)}">
     <div class="sheet-head"><div><h3>${title}</h3>${sub ? `<p class="sub">${sub}</p>` : ""}</div><button type="button" class="close" data-close="1" id="sheetClose" aria-label="Close">×</button></div>
+    ${ui.who === "all" ? `<div class="who-note" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">This is everyone added together. To change it, pick whose: ${HH.people.map(p => `<button type="button" class="small" data-who="${p.id}" id="sw-${p.id}">${esc(p.name)}</button>`).join("")}</div>` : ""}
     ${body}</div></div>`;
 }
 function sheetHTML() {
@@ -1563,7 +1564,12 @@ function sheetHTML() {
 }
 document.addEventListener("click", e => {
   const o = e.target.closest("[data-sheet]");
-  if (o && !o.disabled) { if (o.dataset.now) ui.month = monthKey(new Date()); ui.moveFrom = o.dataset.movefrom || null; ui.sheet = o.dataset.sheet; ui.sheetFresh = true; render(); return; }
+  if (o && !o.disabled) {
+    let sh = o.dataset.sheet;
+    // In "Together", tapping an account opens it in its owner's view so it can be changed
+    if (ui.who === "all" && sh.startsWith("pot:")) { const mid = sh.slice(4); for (const pp of HH.people) { const real = ((P[pp.id] || {}).pots || []).find(p => pp.id + p.id === mid); if (real) { ui.who = pp.id; lsSet("hb-who", pp.id); sh = "pot:" + real.id; toast("Showing " + pp.name + "'s money"); break; } } }
+    if (o.dataset.now) ui.month = monthKey(new Date()); ui.moveFrom = o.dataset.movefrom || null; ui.sheet = sh; ui.sheetFresh = true; render(); return;
+  }
   if (e.target.closest("button[data-close]") || (e.target.dataset && e.target.dataset.closebg)) { ui.sheet = null; render(); return; }
   const ch = e.target.closest("[data-exnote]");
   if (ch) { const n = $("#exNote"); if (n) n.value = ch.dataset.exnote; const a = $("#exAmt"); if (a) a.focus(); return; }
