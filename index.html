@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28a">
+<meta name="build" content="2026-11-28b">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -254,6 +254,9 @@ label.btn { cursor: pointer; }
 .tile-val, .tile-note, .tile .meter { display: block; }
 .kpi-btn { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 20px; border-radius: 20px; }
 .kpi-btn > span { display: block; }
+.spent-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f2f8; }
+.spent-row .tile-name { align-items: flex-start; }
+.spent-row .dot { margin-top: 6px; }
 .kpi-btn .sparkw { display: block; }
 .miles-track { position: relative; height: 150px; margin: 18px 34px 0 6px; }
 .miles-line { position: absolute; left: 0; right: 0; top: 30px; height: 8px; border-radius: 999px; background: #edf0f7; overflow: hidden; }
@@ -819,7 +822,7 @@ const isCredit = p => p.type === "credit";
 const potSign = p => isCredit(p) ? -1 : 1;
 const lastUpdated = p => p.history.reduce((d, e) => e.date > d ? e.date : d, "");
 function missingAccounts() {
-  if (ui.who === "all") return [];
+  if (ui.who === "all" || state.hideSetup || state.pots.some(p => p.type === "current" || p.type === "credit")) return [];
   const set = /isaac/i.test(personName(ui.who)) ? ACCOUNT_SETS.isaac : ACCOUNT_SETS.partner;
   const have = new Set(state.pots.map(p => p.name.trim().toLowerCase()));
   return set.filter(([n]) => !have.has(n.toLowerCase()));
@@ -862,7 +865,7 @@ function viewWealth() {
   return `${exampleBanner()}
   <div class="view-head"><div><h2>Accounts</h2><p class="sub">Tap an account to type its balance. Use Move money when you transfer between them.</p></div>
     <button class="primary" data-sheet="move" id="btnMove"${state.pots.length ? "" : " disabled"}>⇄ Move money</button></div>
-  ${miss.length ? `<div class="card" style="margin-bottom:16px;border-color:#cfd5f7;background:var(--blue-soft)"><h3 style="margin-bottom:6px">Add your accounts in one go</h3>
+  ${miss.length ? `<div class="card" style="margin-bottom:16px;border-color:#cfd5f7;background:var(--blue-soft)"><div class="kpi-top"><h3 style="margin-bottom:6px">Add your accounts in one go</h3><button type="button" class="x" data-act="hide-setup" id="btnHideSetup" aria-label="Hide this">×</button></div>
     <p class="hint" style="margin:0 0 12px">${miss.map(([n]) => esc(n)).join(" · ")}</p>
     <button class="primary" data-act="setup-accounts" id="btnSetupAcc">Add ${miss.length} account${miss.length === 1 ? "" : "s"}</button>
     <p class="hint" style="margin:10px 0 0">Trading 212 Stocks ISA lives on the Investments tab.${/isaac/i.test(personName(ui.who)) ? "" : " The joint account is on Isaac's list so it isn't counted twice."}</p></div>` : ""}
@@ -992,6 +995,7 @@ document.addEventListener("click", e => {
     state.transfers = state.transfers.filter(y => y !== x);
     save(); render(); toast("Move undone");
   }
+  if (e.target.closest('[data-act="hide-setup"]')) { state.hideSetup = true; save(); render(); return; }
   const s = e.target.closest('[data-act="setup-accounts"]');
   if (s) {
     const miss = missingAccounts();
@@ -1253,16 +1257,27 @@ function drawProgress() {
 }
 
 /* ----- pop-up boxes ("sheets") opened by tapping a tile ----- */
+document.addEventListener("input", e => { if (!e.target.dataset || !e.target.dataset.sf) return; let t = 0; document.querySelectorAll("[data-sf]").forEach(i => t += Math.max(0, num(i.value))); const l = $("#spentLive"); if (l) l.textContent = gbp(t); });
 document.addEventListener("submit", e => {
   if (e.target.id !== "spentForm") return;
   e.preventDefault(); e.stopPropagation();
-  const v = Math.max(0, num($("#spentAmt").value));
-  const m = ensureMonth(ui.month); m.spentTotal = +v.toFixed(2);
-  ui.sheet = null; save(); render(); toast("Spent set to " + gbp(v));
+  const m = ensureMonth(ui.month), old = m.spentFrom || {}, from = {};
+  const move = $("#spentBal") ? $("#spentBal").checked : false;
+  let total = 0, changed = 0;
+  document.querySelectorAll("[data-sf]").forEach(i => {
+    const id = i.dataset.sf, v = Math.max(0, +num(i.value).toFixed(2)); total += v;
+    if (id === "other") { m.spentOther = v; return; }
+    if (v) from[id] = v;
+    const d = v - num(old[id]);
+    const p = state.pots.find(p => p.id === id);
+    if (move && p && Math.abs(d) >= 0.005) { setPot(p, potBalance(p) + (p.type === "credit" ? d : -d)); changed++; }
+  });
+  m.spentFrom = from; m.spentTotal = +total.toFixed(2);
+  ui.sheet = null; save(); render(); toast("Spent set to " + gbp(total) + (changed ? " · " + changed + " balance" + (changed === 1 ? "" : "s") + " updated" : ""));
 }, true);
 document.addEventListener("click", e => {
   const b = e.target.closest('[data-act="spent-auto"]'); if (!b) return;
-  const m = ensureMonth(ui.month); delete m.spentTotal;
+  const m = ensureMonth(ui.month); delete m.spentTotal; delete m.spentFrom; delete m.spentOther;
   ui.sheet = null; save(); render(); toast("Spent now adds up your categories");
 });
 document.addEventListener("click", e => { const b = e.target.closest("[data-catmode]"); if (!b) return; lsSet("hb-catmode", b.dataset.catmode); render(); const i = $("#totAmt") || $("#payAmt"); if (i) i.focus(); });
@@ -1419,12 +1434,21 @@ function sheetHTML() {
   }
   if (type === "spent") {
     const ct = catTotal(k), set = hasSpentTotal(m), cur = spendOf(k);
+    const accs = state.pots.filter(p => p.type === "credit" || p.type === "current").sort((a, b) => (b.type === "credit") - (a.type === "credit"));
+    const from = m.spentFrom || {};
+    const fromSum = Object.values(from).reduce((t, v) => t + num(v), 0);
+    const other = m.spentOther !== undefined ? num(m.spentOther) : set ? Math.max(0, num(m.spentTotal) - fromSum) : 0;
+    const row = (id, name, color, sub, val) => `<div class="spent-row"><span class="tile-name"><i class="dot" style="background:${color}"></i><span><span class="t">${esc(name)}</span>${sub ? `<small class="hint" style="display:block;font-weight:500">${sub}</small>` : ""}</span></span><span class="money"><input id="sf-${id}" data-sf="${id}" inputmode="decimal" value="${val ? val.toFixed(2) : ""}" placeholder="0.00" autocomplete="off" aria-label="Spent from ${esc(name)}"></span></div>`;
     return sheetWrap('<span class="dot" style="background:#f2555a"></span>Spent', "Spent", `
-      <form id="spentForm" class="stack">
-        <label class="f">How much you've actually spent in ${ml}<span class="money lg"><input id="spentAmt" inputmode="decimal" value="${cur ? cur.toFixed(2) : ""}" placeholder="0.00" autocomplete="off"></span></label>
+      <div class="sheet-big" id="spentLive">${gbp(cur)}</div><div class="hint">spent in ${ml}</div>
+      <form id="spentForm" class="stack" style="margin-top:14px">
+        <div class="hint" style="font-weight:600">Where did it come from?</div>
+        <div>${accs.map(p => row(p.id, p.name, (TYPES[p.type] || {}).color, p.type === "credit" ? "Credit card · owes " + gbp(potBalance(p)) : "Balance " + gbp(potBalance(p)), num(from[p.id]))).join("")}
+        ${row("other", accs.length ? "Cash or somewhere else" : "Total spent", "#c3c9dc", "", other)}</div>
+        ${accs.length ? `<label class="check"><input type="checkbox" id="spentBal" checked> Change those account balances too (adds to what the card owes, takes it off the current account)</label>` : ""}
         <button class="primary block" type="submit" id="btnSpent">Save</button>
       </form>
-      <p class="hint">Check your banking app and type the real figure. Your categories add up to <b>${gbp(ct)}</b>${set && cur > ct ? `; the other <b>${gbp(cur - ct)}</b> shows as "Not sorted"` : ""}${set && cur < ct ? `, which is more than this total` : ""}.</p>
+      <p class="hint">Type what you've spent from each one so far this month. Your categories add up to <b>${gbp(ct)}</b>${set && cur > ct ? `; the other <b>${gbp(cur - ct)}</b> shows as "Not sorted"` : ""}.</p>
       ${set ? `<button type="button" class="small ghost" data-act="spent-auto" id="btnSpentAuto">Go back to adding up my categories (${gbp(ct)})</button>` : ""}`, ml);
   }
   if (type === "newcat") {
