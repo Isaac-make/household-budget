@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28j">
+<meta name="build" content="2026-11-28k">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -464,6 +464,7 @@ function prepare(s) {
   (s.gifts || []).forEach(g => { if (num(g.spent) > 0 && !g.bought) g.bought = todayISO(); });
   if (!s.sp.cash) s.sp.cash = { rate: 0, history: [] };
   if (!s.transfers) s.transfers = [];
+  s.transfers.forEach(t => { if (t.v !== 2) { if (t.saved) { const mm = s.months[monthKey(t.date)]; if (mm) mm.saved = Math.max(0, +(num(mm.saved) - num(t.amount)).toFixed(2)); } t.v = 2; } });
   (s.pots || []).forEach(p => { if (p.type === "credit" && p.cashback === undefined && /santander/i.test(p.name)) p.cashback = 0.25; });
   if (!s.sp.holdings) {
     s.sp.holdings = [{ id: "sp500", name: "Vanguard S&P 500 UCITS ETF (VUSA, Dist)", short: "S&P 500", ticker: "VUSA.L", color: "#f08a4b", buys: s.sp.buys || [], currentPrice: s.sp.currentPrice || 0, priceDate: s.sp.priceDate || todayISO() }, sglnBlank()];
@@ -497,6 +498,35 @@ const hasSpentTotal = m => !!m && m.spentTotal !== undefined && m.spentTotal !==
 // "Spent" is the categories added up, unless a total for the whole month has been typed in
 const spendOf = k => { const m = state.months[k]; return hasSpentTotal(m) ? num(m.spentTotal) : catTotal(k); };
 const unsortedOf = k => Math.max(0, spendOf(k) - catTotal(k));
+// Savings-type places: anything except current accounts and credit cards, plus Trading 212 cash
+function endType(e) { if (e === "t212") return "t212"; const p = state.pots.find(p => p.id === e); return p ? p.type : ""; }
+function isSaveEnd(e) { const t = endType(e); return !!t && t !== "current" && t !== "credit"; }
+// Saved through Move money in month k: into savings from a current account adds; out of savings to a card or current account takes off
+function movesSaved(k) {
+  return (state.transfers || []).filter(t => t.date.startsWith(k)).reduce((a, t) => {
+    const fs = isSaveEnd(t.from), ts = isSaveEnd(t.to);
+    return a + (!fs && ts ? num(t.amount) : fs && !ts ? -num(t.amount) : 0);
+  }, 0);
+}
+// Pay or extra money that went straight into a savings account
+function incomeSaved(k) {
+  const m = monthData(k), ap = m.incomeIn || {};
+  return Object.values(ap).reduce((a, x) => a + (x && isSaveEnd(x.to) ? num(x.amt) : 0), 0)
+    + (m.extras || []).reduce((a, x) => a + (x.to && isSaveEnd(x.to) ? num(x.amount) : 0), 0);
+}
+// Saved / invested for the month = what Move money and pay put into savings, plus anything typed in by hand
+const savedOf = k => +(num(monthData(k).saved) + movesSaved(k) + incomeSaved(k)).toFixed(2);
+function accountOptions(sel, withT212, none) {
+  const pots = state.pots.filter(p => p.type !== "credit");
+  return (none ? `<option value="">${none}</option>` : "") + pots.map(p => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("")
+    + (withT212 ? `<option value="t212"${sel === "t212" ? " selected" : ""}>Trading 212 cash</option>` : "");
+}
+function payWithOptions(sel) {
+  const pots = state.pots.filter(p => p.type === "credit" || p.type === "current").sort((a, b) => (b.type === "credit") - (a.type === "credit"));
+  return pots.map(p => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("") + `<option value=""${!sel ? " selected" : ""}>Cash or somewhere else</option>`;
+}
+const defaultPayWith = () => { const ok = id => state.pots.some(p => p.id === id); return ok(ui.payWith) ? ui.payWith : ui.payWith === "" ? "" : ((state.pots.find(p => p.type === "credit") || state.pots.find(p => p.type === "current") || {}).id || ""); };
+const firstCurrent = () => (state.pots.find(p => p.type === "current") || {}).id || "";
 const catColor = (c, i) => c.color || PALETTE[i % PALETTE.length];
 const potColor = i => POT_PALETTE[i % POT_PALETTE.length];
 const latestAt = (list, date) => { let v = 0, best = ""; (list || []).forEach(e => { if (e.date <= date && e.date >= best) { best = e.date; v = num(e.value); } }); return v; };
@@ -697,8 +727,8 @@ function milestonesHTML(total) {
 function viewOverview() {
   const k = monthKey(new Date()), pk = shiftMonth(k, -1);
   const m = monthData(k), pm = monthData(pk);
-  const inc = incomeOf(m), sp = spendOf(k), saved = num(m.saved), left = inc - sp - saved;
-  const pLeft = incomeOf(pm) - spendOf(pk) - num(pm.saved);
+  const inc = incomeOf(m), sp = spendOf(k), saved = savedOf(k), left = inc - sp - saved;
+  const pLeft = incomeOf(pm) - spendOf(pk) - savedOf(pk);
   const w = wealthNow();
   const keys = allMonthKeys();
   const prevNW = keys.length > 1 ? netWorthAt(keys[keys.length - 2]) : 0;
@@ -706,7 +736,7 @@ function viewOverview() {
   const interest = state.pots.reduce((t, p) => t + potInfo(p).yearly, 0) + w.cash * num(state.sp.cash.rate) / 100;
   const ps = planSeries(); const ahead = ps.act[ps.act.length - 1] - ps.exp[ps.exp.length - 1];
   let opTotal = 0, opMonths = 0, opSaved = 0;
-  Object.values(state.months).forEach(mm => { const o = num(mm.income.op); if (o > 0) { opTotal += o; opMonths++; opSaved += num(mm.saved); } });
+  Object.entries(state.months).forEach(([mk, mm]) => { const o = num(mm.income.op); if (o > 0) { opTotal += o; opMonths++; opSaved += savedOf(mk); } });
   const opPct = opTotal ? Math.min(100, opSaved / opTotal * 100) : 0;
   const L = lastMonths(8);
   const inParts = [["Base", num(m.income.base)], ["Op", num(m.income.op)], ["Extra", num(m.income.other)]].filter(x => x[1]).map(x => x[0] + " " + gbp0(x[1])).join(" · ");
@@ -767,13 +797,13 @@ function drawOverview() {
     { label: "Base & other pay", data: mk.map(k => num(monthData(k).income.base) + num(monthData(k).income.other)), backgroundColor: "#4256f4", stack: "in", borderRadius: 3 },
     { label: "Op pay", data: mk.map(k => num(monthData(k).income.op)), backgroundColor: "#9aa6ff", stack: "in", borderRadius: 3 },
     { label: "Spending", data: mk.map(spendOf), backgroundColor: "#f2555a", stack: "out", borderRadius: 3 },
-    { label: "Saved / invested", data: mk.map(k => num(monthData(k).saved)), backgroundColor: "#f5a524", stack: "out", borderRadius: 3 }
+    { label: "Saved / invested", data: mk.map(savedOf), backgroundColor: "#f5a524", stack: "out", borderRadius: 3 }
   ] }, options: { plugins: { tooltip: moneyTip }, scales: { y: { stacked: true, ticks: moneyTick }, x: { stacked: true, grid: { display: false } } } } });
 }
 
 function viewMonth() {
   const k = ui.month, m = monthData(k), pk = shiftMonth(k, -1), pm = monthData(pk);
-  const inc = incomeOf(m), sp = spendOf(k), saved = num(m.saved), left = inc - sp - saved;
+  const inc = incomeOf(m), sp = spendOf(k), saved = savedOf(k), left = inc - sp - saved;
   const totalBudget = state.categories.reduce((t, c) => t + num(c.budget), 0);
   const pays = m.payments || [], extras = m.extras || [];
   const tiles = state.categories.map((c, i) => {
@@ -831,8 +861,12 @@ document.addEventListener("submit", e => {
   const m = ensureMonth(ui.month);
   m.payments = m.payments || [];
   const date = ui.month === monthKey(new Date()) ? todayISO() : ui.month + "-01";
-  m.payments.push({ id: uid(), date, cat, amount: +amt.toFixed(2), note });
+  const from = $("#payFrom") ? $("#payFrom").value : ""; ui.payWith = from;
+  m.payments.push({ id: uid(), date, cat, amount: +amt.toFixed(2), note, from });
   m.spend[cat] = +(num(m.spend[cat]) + amt).toFixed(2);
+  // keep the Spent total and the card / account in step
+  if (hasSpentTotal(m)) m.spentTotal = +(num(m.spentTotal) + amt).toFixed(2);
+  if (from) { m.spentFrom = m.spentFrom || {}; m.spentFrom[from] = +(num(m.spentFrom[from]) + amt).toFixed(2); const p = state.pots.find(p => p.id === from); if (p) setPot(p, potBalance(p) + (p.type === "credit" ? amt : -amt)); }
   ui.payCat = cat;
   save(); render();
   const c = state.categories.find(c => c.id === cat);
@@ -844,6 +878,8 @@ document.addEventListener("click", e => {
   const m = ensureMonth(ui.month);
   const x = (m.payments || []).find(x => x.id === b.dataset.delpay); if (!x) return;
   m.payments = m.payments.filter(y => y !== x);
+  if (hasSpentTotal(m)) m.spentTotal = Math.max(0, +(num(m.spentTotal) - num(x.amount)).toFixed(2));
+  if (x.from) { if (m.spentFrom) m.spentFrom[x.from] = Math.max(0, +(num(m.spentFrom[x.from]) - num(x.amount)).toFixed(2)); const p = state.pots.find(p => p.id === x.from); if (p) setPot(p, potBalance(p) - (p.type === "credit" ? num(x.amount) : -num(x.amount))); }
   m.spend[x.cat] = Math.max(0, +(num(m.spend[x.cat]) - num(x.amount)).toFixed(2));
   ui.open.add("paylog");
   save(); render(); toast("Payment removed");
@@ -887,7 +923,8 @@ function moveMoney(e, amt) {
   const p = state.pots.find(p => p.id === e); if (!p) return;
   setPot(p, potBalance(p) + (isCredit(p) ? -amt : amt));
 }
-const countsAsSaving = (from, to) => { const f = state.pots.find(p => p.id === from); const t = state.pots.find(p => p.id === to); return !!f && f.type === "current" && (to === T212 || (t && !isCredit(t) && t.type !== "current")); };
+const countsAsSaving = (from, to) => !isSaveEnd(from) && isSaveEnd(to);
+const takesFromSaving = (from, to) => isSaveEnd(from) && !isSaveEnd(to);
 
 function accTile(p) {
   const t = TYPES[p.type] || TYPES.savings, info = potInfo(p), bal = potBalance(p), up = lastUpdated(p);
@@ -930,7 +967,7 @@ function viewWealth() {
   ${groups.map(([title, f], gi) => { const list = state.pots.filter(f); const extra = gi === 1 ? t212Tile(w.cash) : ""; return list.length || extra ? `<div class="section-head"><h3>${title}</h3></div><div class="tiles">${list.map(accTile).join("")}${extra}</div>` : ""; }).join("")}
   <div class="tiles" style="margin-top:14px"><button type="button" class="tile add" data-sheet="newpot" id="tile-newpot"><span class="plus">+</span>Add an account</button></div>
   <div class="grid g2" style="margin-top:16px">
-    ${moves.length ? `<div class="card span2"><h3>Money moved</h3><div class="tbl-wrap"><table><tbody>${moves.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(endName(x.from))} → ${esc(endName(x.to))}${x.saved ? ' <span class="pill g">Saved</span>' : ""}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delmove="${x.id}" id="dm-${x.id}" aria-label="Undo this move">×</button></td></tr>`).join("")}</tbody></table></div><p class="hint">× undoes a move and puts the balances back.</p></div>` : ""}
+    ${moves.length ? `<div class="card span2"><h3>Money moved</h3><div class="tbl-wrap"><table><tbody>${moves.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(endName(x.from))} → ${esc(endName(x.to))}${countsAsSaving(x.from, x.to) ? ' <span class="pill g">Saved</span>' : takesFromSaving(x.from, x.to) ? ' <span class="pill r">Out of savings</span>' : ""}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delmove="${x.id}" id="dm-${x.id}" aria-label="Undo this move">×</button></td></tr>`).join("")}</tbody></table></div><p class="hint">× undoes a move and puts the balances back.</p></div>` : ""}
     <div class="card span2"><h3>Balances over time</h3><div class="chart-box tall"><canvas id="cAccounts"></canvas></div></div>
     <div class="card span2"><h3>Savings goal</h3>
       <div class="ring">
@@ -1002,7 +1039,7 @@ function moveSheet() {
       <label class="f">Amount<span class="money lg"><input id="mvAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
       <button class="primary block" type="submit" id="btnMoveGo">Move it</button>
     </form>
-    <p class="hint">Both balances update straight away. Moving from a current account into savings, an ISA or Trading 212 also counts as saved this month.</p>`);
+    <p class="hint">Both balances update straight away. Moving into savings, an ISA or Trading 212 counts as saved this month. Taking money out of savings to pay a card or into a current account comes off it.</p>`);
 }
 function newPotSheet() {
   return sheetWrap("Add an account", "Add an account", `
@@ -1033,12 +1070,12 @@ document.addEventListener("submit", e => {
     if (from === to) { toast("Pick two different accounts"); return; }
     moveMoney(from, -amt); moveMoney(to, amt);
     const saved = countsAsSaving(from, to);
-    if (saved) { const m = ensureMonth(monthKey(new Date())); m.saved = +(num(m.saved) + amt).toFixed(2); }
+    const unsaved = takesFromSaving(from, to);
     state.transfers = state.transfers || [];
-    state.transfers.push({ id: uid(), date: todayISO(), from, to, amount: +amt.toFixed(2), saved });
+    state.transfers.push({ id: uid(), date: todayISO(), from, to, amount: +amt.toFixed(2), saved, v: 2 });
     ui.sheet = null; ui.moveFrom = null; save(); render();
     const tp = state.pots.find(p => p.id === to), cb = tp && isCredit(tp) && num(tp.cashback) ? amt * num(tp.cashback) / 100 : 0;
-    toast("Moved " + gbp(amt) + " to " + endName(to) + (saved ? ". Counted as saved" : "") + (cb ? ". About " + gbp(cb) + " cashback" : ""));
+    toast("Moved " + gbp(amt) + " to " + endName(to) + (saved ? ". Counted as saved" : unsaved ? ". Taken off saved this month" : "") + (cb ? ". About " + gbp(cb) + " cashback" : ""));
   }
 }, true);
 document.addEventListener("click", e => {
@@ -1047,7 +1084,6 @@ document.addEventListener("click", e => {
     if (!confirmFirst(d)) return;
     const x = (state.transfers || []).find(x => x.id === d.dataset.delmove); if (!x) return;
     moveMoney(x.from, num(x.amount)); moveMoney(x.to, -num(x.amount));
-    if (x.saved) { const m = ensureMonth(monthKey(x.date)); m.saved = Math.max(0, +(num(m.saved) - num(x.amount)).toFixed(2)); }
     state.transfers = state.transfers.filter(y => y !== x);
     save(); render(); toast("Move undone");
   }
@@ -1250,7 +1286,7 @@ function planSeries() {
   months.forEach((mk, i) => {
     const pl = plannedFor(mk);
     if (i > 0) e = e * (1 + g) + pl;
-    exp.push(e); act.push(netWorthAt(mk)); planned.push(pl); saved.push(num(monthData(mk).saved));
+    exp.push(e); act.push(netWorthAt(mk)); planned.push(pl); saved.push(savedOf(mk));
   });
   // look 12 months ahead: the plan carrying on, and your recent pace carrying on
   const recent = saved.slice(-3).filter(v => v > 0);
@@ -1313,6 +1349,20 @@ function drawProgress() {
 }
 
 /* ----- pop-up boxes ("sheets") opened by tapping a tile ----- */
+document.addEventListener("submit", e => {
+  if (e.target.id !== "incomeForm") return;
+  e.preventDefault(); e.stopPropagation();
+  const m = ensureMonth(ui.month); m.incomeIn = m.incomeIn || {};
+  let moved = 0;
+  ["base", "op"].forEach(key => {
+    const amt = Math.max(0, +num($("#ia-" + key).value).toFixed(2)), to = $("#it-" + key).value, old = m.incomeIn[key];
+    if (old && old.to && num(old.amt)) moveMoney(old.to, -num(old.amt));
+    if (to && amt) { moveMoney(to, amt); moved++; }
+    if (to && amt) m.incomeIn[key] = { to, amt }; else delete m.incomeIn[key];
+    m.income[key] = amt;
+  });
+  ui.sheet = null; save(); render(); toast("Money in saved" + (moved ? " and balances updated" : ""));
+}, true);
 document.addEventListener("input", e => { if (!e.target.dataset || !e.target.dataset.sf) return; let t = 0; document.querySelectorAll("[data-sf]").forEach(i => t += Math.max(0, num(i.value))); const l = $("#spentLive"); if (l) l.textContent = gbp(t); });
 document.addEventListener("submit", e => {
   if (e.target.id !== "spentForm") return;
@@ -1403,13 +1453,21 @@ function sheetHTML() {
   if (type === "newpot") return newPotSheet();
   if (type === "move") return moveSheet();
   if (type === "income") {
+    const ap = m.incomeIn || {}, prev = monthData(shiftMonth(k, -1)).incomeIn || {};
+    const toFor = line => ap[line] ? ap[line].to : prev[line] ? prev[line].to : line === "base" ? firstCurrent() : "";
+    const line = (key, label) => `<div class="row">
+        <label class="f" style="flex:1 1 150px">${label}<span class="money lg"><input id="ia-${key}" inputmode="decimal" value="${num(m.income[key]) || ""}" placeholder="0.00" autocomplete="off"></span></label>
+        <label class="f" style="flex:1 1 170px">Went into<select id="it-${key}">${accountOptions(toFor(key), true, "Not into an account")}</select></label>
+      </div>`;
     return sheetWrap("Money in", "Money in", `
       <div class="sheet-big">${gbp(incomeOf(m))}</div><div class="hint">money in for ${ml}</div>
-      <div class="stack" style="margin-top:16px">
-        <label class="f">Base pay (take-home)<span class="money lg"><input id="inc-base" data-inc="base" inputmode="decimal" value="${num(m.income.base) || ""}" placeholder="0.00" autocomplete="off"></span></label>
-        <label class="f">Op pay<span class="money lg"><input id="inc-op" data-inc="op" inputmode="decimal" value="${num(m.income.op) || ""}" placeholder="0.00" autocomplete="off"></span></label>
-        <div class="row" style="align-items:center"><span class="hint" style="flex:1 1 160px">Extra money: <b>${gbp(num(m.income.other))}</b></span><button type="button" class="small" data-sheet="inc:extra" id="btnToExtra">+ Add extra money</button></div>
-      </div>${done}`, ml);
+      <form id="incomeForm" class="stack" style="margin-top:16px">
+        ${line("base", "Pay (take-home)")}
+        ${line("op", "Op pay")}
+        <p class="hint" style="margin:0">Pick the account it lands in and that balance goes up. Pay that goes straight into savings, an ISA or Trading 212 counts as saved.</p>
+        <button class="primary block" type="submit" id="btnIncome">Save</button>
+      </form>
+      <div class="row sheet-sec" style="align-items:center"><span class="hint" style="flex:1 1 160px">Extra money: <b>${gbp(num(m.income.other))}</b></span><button type="button" class="small" data-sheet="inc:extra" id="btnToExtra">+ Add extra money</button></div>`, ml);
   }
 
   if (type === "cat") {
@@ -1436,13 +1494,14 @@ function sheetHTML() {
         <p class="hint" style="margin:0">Just type what you've spent so far this month. No need to list what it was.</p>
       </form>` : `<form id="payForm" class="stack" style="margin-top:12px">
         <input type="hidden" id="payCat" value="${c.id}">
+        <label class="f">Paid with<select id="payFrom">${payWithOptions(defaultPayWith())}</select></label>
         <div class="row">
           <label class="f" style="flex:1 1 150px">Amount<span class="money lg"><input id="payAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
           <label class="f" style="flex:2 1 180px">What for (optional)<input id="payNote" maxlength="40" placeholder="e.g. Tesco, Shell" autocomplete="off"></label>
         </div>
         <button class="primary block" type="submit" id="btnPay">Add payment</button>
       </form>`}
-      <div class="sheet-sec"${list.length || mode === "add" ? "" : " hidden"}><h4>Payments in ${ml}</h4>${list.length ? `<div class="tbl-wrap scroll-y" style="max-height:240px"><table><tbody>${list.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(x.note || "")}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delpay="${x.id}" id="dp-${x.id}" aria-label="Delete payment">×</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="hint" style="margin:0">None logged yet. Each payment you add goes on top of the total.</p>'}</div>
+      <div class="sheet-sec"${list.length || mode === "add" ? "" : " hidden"}><h4>Payments in ${ml}</h4>${list.length ? `<div class="tbl-wrap scroll-y" style="max-height:240px"><table><tbody>${list.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(x.note || "")}${x.from ? `<br><span class="hint">${esc(endName(x.from))}</span>` : ""}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delpay="${x.id}" id="dp-${x.id}" aria-label="Delete payment">×</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="hint" style="margin:0">None logged yet. Each payment you add goes on top of the total.</p>'}</div>
       ${settings}`, ml);
   }
   if (type === "pay") {
@@ -1450,6 +1509,7 @@ function sheetHTML() {
     if (!cats.find(c => c.id === ui.payCat)) ui.payCat = cats[0].id;
     return sheetWrap("Log a payment", "Log a payment", `
       <form id="payForm" class="stack">
+        <label class="f">Paid with<select id="payFrom">${payWithOptions(defaultPayWith())}</select></label>
         <label class="f">Category<select id="payCat">${cats.map(c => `<option value="${c.id}"${c.id === ui.payCat ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
         <div class="row">
           <label class="f" style="flex:1 1 150px">Amount<span class="money lg"><input id="payAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
@@ -1470,6 +1530,7 @@ function sheetHTML() {
             <label class="f" style="flex:1 1 150px">Amount<span class="money lg"><input id="exAmt" inputmode="decimal" placeholder="0.00" autocomplete="off"></span></label>
             <label class="f" style="flex:2 1 180px">What was it?<input id="exNote" maxlength="40" placeholder="e.g. Sold jacket on Vinted" autocomplete="off"></label>
           </div>
+          <label class="f">Went into<select id="exTo">${accountOptions(ui.exTo !== undefined ? ui.exTo : firstCurrent(), true, "Not into an account")}</select></label>
           <button class="primary block" type="submit" id="btnExtra">Add money in</button>
         </form>
         <div class="sheet-sec"><h4>Logged in ${ml}</h4>${list.length ? `<div class="tbl-wrap scroll-y" style="max-height:240px"><table><tbody>${list.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(x.note || "")}</td><td class="r pos"><b>+${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delextra="${x.id}" id="dx-${x.id}" aria-label="Delete">×</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="hint" style="margin:0">Nothing yet. Sold a jacket, got a refund, did overtime? Add it above and it counts as money in.</p>'}</div>
@@ -1481,15 +1542,25 @@ function sheetHTML() {
       <p class="hint">${isOp ? "Kept separate so the Overview can show how much of your Op money you put away." : "What actually lands in your bank after tax. \"Copy bills\" copies this from last month too."}</p>${done}`, ml);
   }
   if (type === "saved") {
-    const pl = plannedFor(k), saved = num(m.saved);
-    const mvs = (state.transfers || []).filter(t => t.saved && t.date.startsWith(k));
+    const pl = plannedFor(k), saved = savedOf(k), manual = num(m.saved);
+    const mvs = (state.transfers || []).filter(t => t.date.startsWith(k) && (countsAsSaving(t.from, t.to) || takesFromSaving(t.from, t.to)));
+    const ins = [...Object.entries(m.incomeIn || {}).filter(([, x]) => x && isSaveEnd(x.to)).map(([key, x]) => [key === "op" ? "Op pay" : "Pay", x.to, num(x.amt)]),
+      ...(m.extras || []).filter(x => x.to && isSaveEnd(x.to)).map(x => [x.note || "Extra money", x.to, num(x.amount)])];
     return sheetWrap('<span class="dot" style="background:#f5a524"></span>Saved / invested', "Saved or invested", `
-      <div class="row">
-        <label class="f">Moved to savings or investments<span class="money lg"><input id="inc-saved" data-saved="1" inputmode="decimal" value="${saved || ""}" placeholder="0.00" autocomplete="off"></span></label>
-        <label class="f">Planned to save<span class="money lg"><input id="inc-planned" data-planned="1" inputmode="decimal" value="${m.planned !== undefined && m.planned !== "" ? num(m.planned) : ""}" placeholder="${num(state.plan.monthly)}" autocomplete="off"></span></label>
+      <div class="sheet-big">${gbp(saved)}</div><div class="hint">saved or invested in ${ml}${pl ? ` · ${saved >= pl ? `<span class="pos">plan of ${gbp0(pl)} hit</span>` : `${gbp0(pl - saved)} short of your ${gbp0(pl)} plan`}` : ""}</div>
+      <div class="row" style="margin-top:14px"><button type="button" class="primary" data-sheet="move" id="svMove">⇄ Move money</button></div>
+      <div class="sheet-sec"><h4>How it adds up</h4>
+        ${mvs.length || ins.length ? `<table><tbody>
+          ${ins.map(([n, to, a]) => `<tr><td class="wrap-t">${esc(n)} → ${esc(endName(to))}</td><td class="r pos"><b>+${gbp(a)}</b></td></tr>`).join("")}
+          ${mvs.map(t => { const plus = countsAsSaving(t.from, t.to); return `<tr><td class="wrap-t">${shortDate(t.date)} · ${esc(endName(t.from))} → ${esc(endName(t.to))}</td><td class="r ${plus ? "pos" : "neg"}"><b>${plus ? "+" : "−"}${gbp(num(t.amount))}</b></td></tr>`; }).join("")}
+          ${manual ? `<tr><td>Typed in below</td><td class="r"><b>+${gbp(manual)}</b></td></tr>` : ""}
+        </tbody></table>` : '<p class="hint" style="margin:0">Nothing yet. Use Move money, or pick a savings account under Money in, and it adds up here by itself.</p>'}
+        <p class="hint">Money taken out of savings to pay a credit card (or into a current account) comes off.</p>
       </div>
-      ${pl ? `<p class="hint">${saved >= pl ? `<span class="pos">You hit your plan of ${gbp0(pl)}.</span>` : `${gbp0(pl - saved)} short of your plan of ${gbp0(pl)}.`} Leave "Planned" blank to use your usual ${gbp0(num(state.plan.monthly))} from the Progress tab.</p>` : ""}<div class="row" style="margin-top:12px"><button type="button" class="small" data-sheet="move" id="svMove">⇄ Move money into savings or Trading 212</button></div>
-      ${mvs.length ? `<div class="sheet-sec"><h4>Counted from Move money</h4><table><tbody>${mvs.map(t => `<tr><td>${shortDate(t.date)}</td><td class="wrap-t">${esc(endName(t.from))} → ${esc(endName(t.to))}</td><td class="r"><b>${gbp(num(t.amount))}</b></td></tr>`).join("")}</tbody></table><p class="hint" style="margin-bottom:0">These are already in the total above.</p></div>` : ""}
+      <div class="sheet-sec row">
+        <label class="f">Other saving not shown above<span class="money"><input id="inc-saved" data-saved="1" inputmode="decimal" value="${manual || ""}" placeholder="0.00" autocomplete="off"></span></label>
+        <label class="f">Planned to save<span class="money"><input id="inc-planned" data-planned="1" inputmode="decimal" value="${m.planned !== undefined && m.planned !== "" ? num(m.planned) : ""}" placeholder="${num(state.plan.monthly)}" autocomplete="off"></span></label>
+      </div>
       ${done}`, ml);
   }
   if (type === "spent") {
@@ -1633,7 +1704,9 @@ document.addEventListener("submit", e => {
   const m = ensureMonth(ui.month);
   m.extras = m.extras || [];
   const date = ui.month === monthKey(new Date()) ? todayISO() : ui.month + "-01";
-  m.extras.push({ id: uid(), date, amount: +amt.toFixed(2), note });
+  const to = $("#exTo") ? $("#exTo").value : ""; ui.exTo = to;
+  m.extras.push({ id: uid(), date, amount: +amt.toFixed(2), note, to });
+  if (to) moveMoney(to, amt);
   m.income.other = +(num(m.income.other) + amt).toFixed(2);
   save(); render(); toast("+" + gbp(amt) + " added to money in");
 }, true);
@@ -1642,6 +1715,7 @@ document.addEventListener("click", e => {
   const m = ensureMonth(ui.month);
   const x = (m.extras || []).find(x => x.id === b.dataset.delextra); if (!x) return;
   m.extras = m.extras.filter(y => y !== x);
+  if (x.to) moveMoney(x.to, -num(x.amount));
   m.income.other = Math.max(0, +(num(m.income.other) - num(x.amount)).toFixed(2));
   save(); render(); toast("Removed");
 });
@@ -2005,7 +2079,7 @@ function mergeStates() {
       const s = P[id], m = s.months[k];
       om.planned += m && m.planned !== undefined && m.planned !== "" && m.planned !== null ? num(m.planned) : num(s.plan.monthly);
       if (!m) return;
-      om.income.base += num(m.income.base); om.income.op += num(m.income.op); om.income.other += num(m.income.other); om.saved += num(m.saved);
+      om.income.base += num(m.income.base); om.income.op += num(m.income.op); om.income.other += num(m.income.other); { const keep = state; state = s; om.saved += savedOf(k); state = keep; }
       s.categories.forEach(c => { if (m.spend[c.id] !== undefined) { const nc = cats.get(keyOf(c.name)); om.spend[nc.id] = num(om.spend[nc.id]) + num(m.spend[c.id]); } });
     });
     if (ids.some(id => hasSpentTotal(P[id].months[k]))) { const keep = state; om.spentTotal = ids.reduce((t, id) => { state = P[id]; const v = spendOf(k); state = keep; return t + v; }, 0); }
