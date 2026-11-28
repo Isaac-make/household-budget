@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28l">
+<meta name="build" content="2026-11-28m">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -465,7 +465,7 @@ function prepare(s) {
   if (!s.sp.cash) s.sp.cash = { rate: 0, history: [] };
   if (!s.transfers) s.transfers = [];
   s.transfers.forEach(t => { if (t.v !== 2) { if (t.saved) { const mm = s.months[monthKey(t.date)]; if (mm) mm.saved = Math.max(0, +(num(mm.saved) - num(t.amount)).toFixed(2)); } t.v = 2; } });
-  (s.pots || []).forEach(p => { if (p.type === "credit" && p.cashback === undefined && /santander/i.test(p.name)) p.cashback = 0.25; if (p.joint === undefined) p.joint = /\bjoint\b|\bshared\b/i.test(p.name); });
+  (s.pots || []).forEach(p => { if (p.type === "credit" && p.cashback === undefined && /santander/i.test(p.name)) p.cashback = 0.25; if (p.type === "credit" && p.catCashback === undefined) p.catCashback = defaultCatCashback(p, s.categories); if (p.joint === undefined) p.joint = /\bjoint\b|\bshared\b/i.test(p.name); });
   if (!s.sp.holdings) {
     s.sp.holdings = [{ id: "sp500", name: "Vanguard S&P 500 UCITS ETF (VUSA, Dist)", short: "S&P 500", ticker: "VUSA.L", color: "#f08a4b", buys: s.sp.buys || [], currentPrice: s.sp.currentPrice || 0, priceDate: s.sp.priceDate || todayISO() }, sglnBlank()];
     delete s.sp.buys; delete s.sp.currentPrice; delete s.sp.priceDate; delete s.sp.fund;
@@ -882,7 +882,8 @@ document.addEventListener("submit", e => {
   ui.payCat = cat;
   save(); render();
   const c = state.categories.find(c => c.id === cat);
-  toast(gbp(amt) + " added to " + (c ? c.name : "spending"));
+  const pc = potOf(from), cbr = pc && pc.type === "credit" ? catRate(pc, cat) : 0;
+  toast(gbp(amt) + " added to " + (c ? c.name : "spending") + (cbr ? " · about " + gbp(amt * cbr / 100) + " cashback (" + cbr + "%)" : ""));
   const box = $("#payAmt"); if (box) box.focus();
 }, true);
 document.addEventListener("click", e => {
@@ -910,7 +911,18 @@ const isCredit = p => p.type === "credit";
 const cardPaidIn = (p, k) => (state.transfers || []).filter(t => t.to === p.id && t.date.startsWith(k)).reduce((a, t) => a + num(t.amount), 0);
 // ...or the highest balance typed in for the card that month
 const cardOwedIn = (p, k) => p.history.filter(e => e.date.startsWith(k)).reduce((a, e) => Math.max(a, num(e.value)), 0);
-const cashbackIn = (p, k) => { const f = monthData(k).spentFrom || {}; return Math.max(num(f[p.id]), cardPaidIn(p, k), cardOwedIn(p, k)) * num(p.cashback) / 100; };
+const catRate = (p, catId) => { const r = (p.catCashback || {})[catId]; return r !== undefined && r !== "" ? num(r) : num(p.cashback); };
+function cashbackIn(p, k) {
+  const m = monthData(k), f = m.spentFrom || {};
+  const pays = (m.payments || []).filter(x => x.from === p.id);
+  const bonus = pays.reduce((a, x) => a + num(x.amount) * catRate(p, x.cat) / 100, 0);
+  const catAmt = pays.reduce((a, x) => a + num(x.amount), 0);
+  const all = Math.max(num(f[p.id]), cardPaidIn(p, k), cardOwedIn(p, k));
+  const v = bonus + Math.max(0, all - catAmt) * num(p.cashback) / 100;
+  return num(p.cashbackCap) ? Math.min(v, num(p.cashbackCap)) : v;
+}
+const BONUS_CATS = /\b(fuel|petrol|diesel|eating out|restaurants?|takeaways?)\b/i;
+function defaultCatCashback(p, cats) { const o = {}; if (/santander/i.test(p.name)) (cats || []).forEach(c => { if (BONUS_CATS.test(c.name)) o[c.id] = 3; }); return o; }
 const cashbackYear = p => { const y = String(new Date().getFullYear()); const ks = new Set(Object.keys(state.months).concat((state.transfers || []).map(t => monthKey(t.date)), p.history.map(e => monthKey(e.date)))); return [...ks].filter(k => k.startsWith(y)).reduce((t, k) => t + cashbackIn(p, k), 0); };
 const potSign = p => isCredit(p) ? -1 : 1;
 const lastUpdated = p => p.history.reduce((d, e) => e.date > d ? e.date : d, "");
@@ -948,7 +960,7 @@ function accTile(p) {
   return `<button type="button" class="tile" data-sheet="pot:${p.id}" id="tile-p-${p.id}">
     <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${t.color}"></i><span class="t">${esc(p.name)}</span></span>${badge}</span>
     <span class="tile-val ${isCredit(p) && bal > 0 ? "neg" : ""}">${isCredit(p) && bal > 0 ? "−" : ""}${gbp(Math.abs(bal))}</span>
-    ${isCredit(p) && num(p.cashback) ? `<span class="tile-note pos">${num(p.cashback)}% back · ${gbp(cashbackIn(p, monthKey(new Date())))} this month</span>` : ""}
+    ${isCredit(p) && num(p.cashback) ? `<span class="tile-note pos">${gbp(cashbackIn(p, monthKey(new Date())))} cashback this month</span>` : ""}
     <span class="tile-note">${isCredit(p) ? (bal > 0 ? "Owed · " : bal < 0 ? "In credit · " : "") : ""}${up ? (ago === 0 ? "Updated today" : ago === 1 ? "Updated yesterday" : "Updated " + ago + " days ago") : "Tap to add the balance"}</span>
   </button>`;
 }
@@ -1009,7 +1021,8 @@ function potSheet(id) {
   const list = [...p.history].sort((a, b) => b.date.localeCompare(a.date));
   const facts = [];
   if (info.yearly) facts.push(`Earns about <b class="pos">${gbp(info.yearly)}</b> a year`);
-  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out each month from the biggest of: the balance you type in here, what Spent says went on the card, or what you paid off it with Move money.`);
+  if (isCredit(p) && Object.keys(p.catCashback || {}).length) facts.push(`Bonus: ${Object.entries(p.catCashback).map(([cid, r]) => { const c = state.categories.find(c => c.id === cid); return c ? `<b>${num(r)}%</b> on ${esc(c.name)}` : ""; }).filter(Boolean).join(", ")}`);
+  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% on everything else. Cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out each month from the biggest of: the balance you type in here, what Spent says went on the card, or what you paid off it with Move money.`);
   if (info.status === "locked") facts.push(`Locked until <b>${shortDate(info.end)}</b> (${info.daysLeft} days). About <b>${gbp0(info.atEnd)}</b> then`);
   if (info.status === "running") facts.push(`${info.paymentsLeft} of ${num(p.term)} payments left. About <b>${gbp0(info.atEnd)}</b> at the end on ${shortDate(info.end)}`);
   if (info.status === "unlocked" || info.status === "ended") facts.push(`<span class="warn-t">The fixed term has ended. Time to move it.</span>`);
@@ -1028,8 +1041,13 @@ function potSheet(id) {
         <label class="f">Name<input id="pn-${p.id}" data-pot="${p.id}" data-pf="name" value="${esc(p.name)}" maxlength="40"></label>
         <label class="f">Type<select id="pt-${p.id}" data-pot="${p.id}" data-pf="type">${Object.entries(TYPES).map(([k, d]) => `<option value="${k}"${p.type === k ? " selected" : ""}>${d.label}</option>`).join("")}</select></label>
         <label class="f">${isCredit(p) ? "APR %" : "Interest rate %"}<input id="pr-${p.id}" data-pot="${p.id}" data-pf="rate" inputmode="decimal" value="${num(p.rate) || ""}" placeholder="e.g. 4.5"></label>
-        ${isCredit(p) ? `<label class="f">Cashback %<input id="pcb-${p.id}" data-pot="${p.id}" data-pf="cashback" inputmode="decimal" value="${num(p.cashback) || ""}" placeholder="e.g. 0.25"></label>` : ""}
+        ${isCredit(p) ? `<label class="f">Cashback % on everything<input id="pcb-${p.id}" data-pot="${p.id}" data-pf="cashback" inputmode="decimal" value="${num(p.cashback) || ""}" placeholder="e.g. 0.25"></label>` : ""}
       </div>
+      ${isCredit(p) ? `<div class="sheet-sec" style="margin-top:12px;padding-top:12px"><h4>Bonus cashback by category</h4>
+        <p class="hint" style="margin:-4px 0 10px">Payments logged under these categories and paid with this card earn this % instead. Leave blank for the normal ${num(p.cashback) || 0}%.</p>
+        <div class="tiles" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${state.categories.filter(c => !c.linked).map(c => `<label class="f">${esc(c.name)}<input id="pcc-${p.id}-${c.id}" data-catcb="${p.id}|${c.id}" inputmode="decimal" value="${(p.catCashback || {})[c.id] !== undefined ? num(p.catCashback[c.id]) : ""}" placeholder="${num(p.cashback) || 0}%"></label>`).join("")}</div>
+        <label class="f" style="margin-top:10px;max-width:220px">Cashback cap a month (optional)<span class="money"><input id="pcap-${p.id}" data-pot="${p.id}" data-pf="cashbackCap" inputmode="decimal" value="${num(p.cashbackCap) || ""}" placeholder="No cap"></span></label>
+      </div>` : ""}
       ${p.type === "regular" ? `<div class="row" style="margin-top:10px">
         <label class="f">Monthly payment<span class="money"><input id="pm-${p.id}" data-pot="${p.id}" data-pf="monthly" inputmode="decimal" value="${num(p.monthly) || ""}"></span></label>
         <label class="f">Started<input type="date" id="ps-${p.id}" data-pot="${p.id}" data-pf="start" value="${p.start || ""}"></label>
@@ -1108,7 +1126,7 @@ document.addEventListener("click", e => {
   const s = e.target.closest('[data-act="setup-accounts"]');
   if (s) {
     const miss = missingAccounts();
-    miss.forEach(([name, type]) => { const p = { id: uid(), name, type, rate: 0, fixedUntil: "", history: [] }; if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; } if (type === "credit" && /santander/i.test(name)) p.cashback = 0.25; p.joint = /joint/i.test(name); state.pots.push(p); });
+    miss.forEach(([name, type]) => { const p = { id: uid(), name, type, rate: 0, fixedUntil: "", history: [] }; if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; } if (type === "credit" && /santander/i.test(name)) { p.cashback = 0.25; p.catCashback = defaultCatCashback(p, state.categories); } p.joint = /joint/i.test(name); state.pots.push(p); });
     save(); render(); toast("Added " + miss.length + " accounts. Tap each one to type its balance");
   }
 });
@@ -1782,6 +1800,7 @@ app.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dat
 app.addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.spend) { const m = ensureMonth(ui.month); m.spend[t.dataset.spend] = num(t.value); save(); later(); }
+  else if (t.dataset.catcb) { const [pid, cid] = t.dataset.catcb.split("|"); const p = state.pots.find(p => p.id === pid); if (p) { p.catCashback = p.catCashback || {}; if (t.value.trim() === "") delete p.catCashback[cid]; else p.catCashback[cid] = num(t.value); save(); later(); } }
   else if (t.dataset.joint) { const p = state.pots.find(p => p.id === t.dataset.joint); if (p) { p.joint = t.checked; save(); later(); } }
   else if (t.dataset.fixed) { const c = state.categories.find(c => c.id === t.dataset.fixed); if (c) { c.fixed = t.checked; save(); later(); } }
   else if (t.dataset.budget) { const c = state.categories.find(c => c.id === t.dataset.budget); if (c) { c.budget = num(t.value); save(); later(); } }
@@ -1803,7 +1822,7 @@ app.addEventListener("change", e => {
     const f = t.dataset.pf;
     if (f === "name") p.name = t.value.trim() || "Pot";
     else if (f === "type") { p.type = t.value; if (p.type === "regular") { p.term = num(p.term) || 12; p.start = p.start || todayISO().slice(0, 8) + "01"; p.fixedUntil = ""; } }
-    else if (f === "rate" || f === "monthly" || f === "term" || f === "cashback") p[f] = num(t.value);
+    else if (f === "rate" || f === "monthly" || f === "term" || f === "cashback" || f === "cashbackCap") p[f] = num(t.value);
     else p[f] = t.value;
     save(); later();
   }
@@ -2103,6 +2122,7 @@ function mergeStates() {
       Object.entries(m.spentFrom || {}).forEach(([e, v]) => { const mid = mergedId(id, e); om.spentFrom[mid] = num(om.spentFrom[mid]) + num(v); });
       om.income.base += num(m.income.base); om.income.op += num(m.income.op); om.income.other += num(m.income.other);
       s.categories.forEach(c => { if (m.spend[c.id] !== undefined) { const nc = cats.get(keyOf(c.name)); om.spend[nc.id] = num(om.spend[nc.id]) + num(m.spend[c.id]); } });
+      (m.payments || []).forEach(x => { const c = s.categories.find(c => c.id === x.cat); om.payments = om.payments || []; om.payments.push({ ...x, from: x.from ? mergedId(id, x.from) : "", cat: c ? cats.get(keyOf(c.name)).id : x.cat }); });
     });
     if (ids.some(id => hasSpentTotal(P[id].months[k]))) { const keep = state; om.spentTotal = ids.reduce((t, id) => { state = P[id]; const v = spendOf(k); state = keep; return t + v; }, 0); }
     out.months[k] = om;
@@ -2110,7 +2130,7 @@ function mergeStates() {
   ids.forEach(id => {
     const who = personName(id);
     P[id].gifts.forEach(g => out.gifts.push({ ...g, id: id + g.id, name: g.name + " (" + who + ")" }));
-    P[id].pots.forEach(p => out.pots.push({ ...p, id: id + p.id, name: p.name + " · " + (p.joint ? "joint" : who) }));
+    P[id].pots.forEach(p => { const cc = {}; Object.entries(p.catCashback || {}).forEach(([cid, r]) => { const c = P[id].categories.find(c => c.id === cid); if (c) cc[cats.get(keyOf(c.name)).id] = r; }); out.pots.push({ ...p, catCashback: cc, id: id + p.id, name: p.name + " · " + (p.joint ? "joint" : who) }); });
     (P[id].transfers || []).forEach(t => out.transfers.push({ ...t, from: mergedId(id, t.from), to: mergedId(id, t.to) }));
   });
   const holds = new Map();
