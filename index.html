@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28c">
+<meta name="build" content="2026-11-28d">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -821,8 +821,10 @@ const ACCOUNT_SETS = {
 };
 const isCredit = p => p.type === "credit";
 // Cashback on a card, worked out from what Spent says went on it
-const cashbackIn = (p, k) => { const f = monthData(k).spentFrom || {}; return num(f[p.id]) * num(p.cashback) / 100; };
-const cashbackYear = p => { const y = String(new Date().getFullYear()); return Object.keys(state.months).filter(k => k.startsWith(y)).reduce((t, k) => t + cashbackIn(p, k), 0); };
+// Uses whichever is bigger that month: what Spent says went on the card, or what was paid off it with Move money
+const cardPaidIn = (p, k) => (state.transfers || []).filter(t => t.to === p.id && t.date.startsWith(k)).reduce((a, t) => a + num(t.amount), 0);
+const cashbackIn = (p, k) => { const f = monthData(k).spentFrom || {}; return Math.max(num(f[p.id]), cardPaidIn(p, k)) * num(p.cashback) / 100; };
+const cashbackYear = p => { const y = String(new Date().getFullYear()); const ks = new Set(Object.keys(state.months).concat((state.transfers || []).map(t => monthKey(t.date)))); return [...ks].filter(k => k.startsWith(y)).reduce((t, k) => t + cashbackIn(p, k), 0); };
 const potSign = p => isCredit(p) ? -1 : 1;
 const lastUpdated = p => p.history.reduce((d, e) => e.date > d ? e.date : d, "");
 function missingAccounts() {
@@ -854,9 +856,9 @@ function accTile(p) {
   const badge = info.status === "locked" ? `<span class="badge flat">Locked</span>` : info.status === "running" ? `<span class="badge blue">${gbp0(num(p.monthly))}/mo</span>` : num(p.rate) && !isCredit(p) ? `<span class="badge up">${num(p.rate)}%</span>` : "";
   return `<button type="button" class="tile" data-sheet="pot:${p.id}" id="tile-p-${p.id}">
     <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${t.color}"></i><span class="t">${esc(p.name)}</span></span>${badge}</span>
-    <span class="tile-val ${isCredit(p) && bal > 0 ? "neg" : ""}">${isCredit(p) && bal > 0 ? "−" : ""}${gbp(bal)}</span>
+    <span class="tile-val ${isCredit(p) && bal > 0 ? "neg" : ""}">${isCredit(p) && bal > 0 ? "−" : ""}${gbp(Math.abs(bal))}</span>
     ${isCredit(p) && num(p.cashback) ? `<span class="tile-note pos">${num(p.cashback)}% back · ${gbp(cashbackIn(p, monthKey(new Date())))} this month</span>` : ""}
-    <span class="tile-note">${isCredit(p) ? (bal > 0 ? "Owed · " : "") : ""}${up ? (ago === 0 ? "Updated today" : ago === 1 ? "Updated yesterday" : "Updated " + ago + " days ago") : "Tap to add the balance"}</span>
+    <span class="tile-note">${isCredit(p) ? (bal > 0 ? "Owed · " : bal < 0 ? "In credit · " : "") : ""}${up ? (ago === 0 ? "Updated today" : ago === 1 ? "Updated yesterday" : "Updated " + ago + " days ago") : "Tap to add the balance"}</span>
   </button>`;
 }
 function viewWealth() {
@@ -908,7 +910,7 @@ function potSheet(id) {
   const list = [...p.history].sort((a, b) => b.date.localeCompare(a.date));
   const facts = [];
   if (info.yearly) facts.push(`Earns about <b class="pos">${gbp(info.yearly)}</b> a year`);
-  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out from what you put on this card under Spent.`);
+  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out from what you spent on this card under Spent, or what you paid off it with Move money, whichever is more each month.`);
   if (info.status === "locked") facts.push(`Locked until <b>${shortDate(info.end)}</b> (${info.daysLeft} days). About <b>${gbp0(info.atEnd)}</b> then`);
   if (info.status === "running") facts.push(`${info.paymentsLeft} of ${num(p.term)} payments left. About <b>${gbp0(info.atEnd)}</b> at the end on ${shortDate(info.end)}`);
   if (info.status === "unlocked" || info.status === "ended") facts.push(`<span class="warn-t">The fixed term has ended. Time to move it.</span>`);
@@ -989,7 +991,8 @@ document.addEventListener("submit", e => {
     state.transfers = state.transfers || [];
     state.transfers.push({ id: uid(), date: todayISO(), from, to, amount: +amt.toFixed(2), saved });
     ui.sheet = null; ui.moveFrom = null; save(); render();
-    toast("Moved " + gbp(amt) + " to " + endName(to) + (saved ? ". Counted as saved" : ""));
+    const tp = state.pots.find(p => p.id === to), cb = tp && isCredit(tp) && num(tp.cashback) ? amt * num(tp.cashback) / 100 : 0;
+    toast("Moved " + gbp(amt) + " to " + endName(to) + (saved ? ". Counted as saved" : "") + (cb ? ". About " + gbp(cb) + " cashback" : ""));
   }
 }, true);
 document.addEventListener("click", e => {
