@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28k">
+<meta name="build" content="2026-11-28l">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -465,7 +465,7 @@ function prepare(s) {
   if (!s.sp.cash) s.sp.cash = { rate: 0, history: [] };
   if (!s.transfers) s.transfers = [];
   s.transfers.forEach(t => { if (t.v !== 2) { if (t.saved) { const mm = s.months[monthKey(t.date)]; if (mm) mm.saved = Math.max(0, +(num(mm.saved) - num(t.amount)).toFixed(2)); } t.v = 2; } });
-  (s.pots || []).forEach(p => { if (p.type === "credit" && p.cashback === undefined && /santander/i.test(p.name)) p.cashback = 0.25; });
+  (s.pots || []).forEach(p => { if (p.type === "credit" && p.cashback === undefined && /santander/i.test(p.name)) p.cashback = 0.25; if (p.joint === undefined) p.joint = /\bjoint\b|\bshared\b/i.test(p.name); });
   if (!s.sp.holdings) {
     s.sp.holdings = [{ id: "sp500", name: "Vanguard S&P 500 UCITS ETF (VUSA, Dist)", short: "S&P 500", ticker: "VUSA.L", color: "#f08a4b", buys: s.sp.buys || [], currentPrice: s.sp.currentPrice || 0, priceDate: s.sp.priceDate || todayISO() }, sglnBlank()];
     delete s.sp.buys; delete s.sp.currentPrice; delete s.sp.priceDate; delete s.sp.fund;
@@ -499,7 +499,19 @@ const hasSpentTotal = m => !!m && m.spentTotal !== undefined && m.spentTotal !==
 const spendOf = k => { const m = state.months[k]; return hasSpentTotal(m) ? num(m.spentTotal) : catTotal(k); };
 const unsortedOf = k => Math.max(0, spendOf(k) - catTotal(k));
 // Savings-type places: anything except current accounts and credit cards, plus Trading 212 cash
-function endType(e) { if (e === "t212") return "t212"; const p = state.pots.find(p => p.id === e); return p ? p.type : ""; }
+// A joint account lives on one person's list; the other person sees it as "@owner:id"
+function potOf(id) {
+  if (typeof id === "string" && id.startsWith("@")) { const i = id.indexOf(":"), pid = id.slice(1, i), pot = id.slice(i + 1); return P[pid] ? (P[pid].pots || []).find(x => x.id === pot) || null : null; }
+  return state.pots.find(p => p.id === id) || null;
+}
+function sharedPots() {
+  if (ui.who === "all") return [];
+  const out = [];
+  HH.people.forEach(pp => { if (pp.id !== ui.who && P[pp.id]) (P[pp.id].pots || []).forEach(p => { if (p.joint) out.push({ ...p, id: "@" + pp.id + ":" + p.id, owner: pp.name }); }); });
+  return out;
+}
+const myAndShared = () => state.pots.concat(sharedPots());
+function endType(e) { if (e === "t212") return "t212"; const p = potOf(e); return p ? p.type : ""; }
 function isSaveEnd(e) { const t = endType(e); return !!t && t !== "current" && t !== "credit"; }
 // Saved through Move money in month k: into savings from a current account adds; out of savings to a card or current account takes off
 function movesSaved(k) {
@@ -515,17 +527,17 @@ function incomeSaved(k) {
     + (m.extras || []).reduce((a, x) => a + (x.to && isSaveEnd(x.to) ? num(x.amount) : 0), 0);
 }
 // Saved / invested for the month = what Move money and pay put into savings, plus anything typed in by hand
-const savedOf = k => +(num(monthData(k).saved) + movesSaved(k) + incomeSaved(k)).toFixed(2);
+const savedOf = k => state.merged ? num(monthData(k).saved) : +(num(monthData(k).saved) + movesSaved(k) + incomeSaved(k)).toFixed(2);
 function accountOptions(sel, withT212, none) {
-  const pots = state.pots.filter(p => p.type !== "credit");
+  const pots = myAndShared().filter(p => p.type !== "credit");
   return (none ? `<option value="">${none}</option>` : "") + pots.map(p => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("")
     + (withT212 ? `<option value="t212"${sel === "t212" ? " selected" : ""}>Trading 212 cash</option>` : "");
 }
 function payWithOptions(sel) {
-  const pots = state.pots.filter(p => p.type === "credit" || p.type === "current").sort((a, b) => (b.type === "credit") - (a.type === "credit"));
+  const pots = myAndShared().filter(p => p.type === "credit" || p.type === "current").sort((a, b) => (b.type === "credit") - (a.type === "credit"));
   return pots.map(p => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("") + `<option value=""${!sel ? " selected" : ""}>Cash or somewhere else</option>`;
 }
-const defaultPayWith = () => { const ok = id => state.pots.some(p => p.id === id); return ok(ui.payWith) ? ui.payWith : ui.payWith === "" ? "" : ((state.pots.find(p => p.type === "credit") || state.pots.find(p => p.type === "current") || {}).id || ""); };
+const defaultPayWith = () => { const ok = id => !!potOf(id); return ok(ui.payWith) ? ui.payWith : ui.payWith === "" ? "" : ((state.pots.find(p => p.type === "credit") || state.pots.find(p => p.type === "current") || {}).id || ""); };
 const firstCurrent = () => (state.pots.find(p => p.type === "current") || {}).id || "";
 const catColor = (c, i) => c.color || PALETTE[i % PALETTE.length];
 const potColor = i => POT_PALETTE[i % POT_PALETTE.length];
@@ -834,7 +846,7 @@ function viewMonth() {
   <div class="card flow">
     <button type="button" class="flow-cell" data-sheet="income" id="kpiIncome"><span class="label">Money in</span><span class="value">${gbp0(inc)}</span><span class="note">${[["Pay", num(m.income.base)], ["Op", num(m.income.op)], ["Extra", num(m.income.other)]].filter(x => x[1]).map(x => x[0] + " " + gbp0(x[1])).join(" · ") || "Tap to add your pay"}</span></button>
     <span class="flow-op" aria-hidden="true">−</span>
-    <button type="button" class="flow-cell" data-sheet="spent" id="kpiSpent"><span class="label">Spent</span><span class="value">${gbp0(sp)}</span><span class="note">${(() => { const f = m.spentFrom || {}; const parts = Object.keys(f).map(id => { const p = state.pots.find(p => p.id === id); return p && num(f[id]) ? p.name.replace(/ current account$/i, "").replace(/ credit card$/i, " card") + " " + gbp0(num(f[id])) : ""; }).filter(Boolean); return parts.length ? parts.slice(0, 2).join(" · ") : hasSpentTotal(m) ? "Typed in" : "Tap to update"; })()}</span></button>
+    <button type="button" class="flow-cell" data-sheet="spent" id="kpiSpent"><span class="label">Spent</span><span class="value">${gbp0(sp)}</span><span class="note">${(() => { const f = m.spentFrom || {}; const parts = Object.keys(f).map(id => { const p = potOf(id); return p && num(f[id]) ? p.name.replace(/ current account$/i, "").replace(/ credit card$/i, " card") + " " + gbp0(num(f[id])) : ""; }).filter(Boolean); return parts.length ? parts.slice(0, 2).join(" · ") : hasSpentTotal(m) ? "Typed in" : "Tap to update"; })()}</span></button>
     <span class="flow-op" aria-hidden="true">−</span>
     <button type="button" class="flow-cell" data-sheet="saved" id="kpiSaved"><span class="label">Saved / invested</span><span class="value">${gbp0(saved)}</span><span class="note">${pl ? (saved >= pl ? `<span class="pos">Plan of ${gbp0(pl)} hit</span>` : `${gbp0(pl - saved)} to hit your plan`) : "Tap to update"}</span></button>
     <span class="flow-op" aria-hidden="true">=</span>
@@ -866,7 +878,7 @@ document.addEventListener("submit", e => {
   m.spend[cat] = +(num(m.spend[cat]) + amt).toFixed(2);
   // keep the Spent total and the card / account in step
   if (hasSpentTotal(m)) m.spentTotal = +(num(m.spentTotal) + amt).toFixed(2);
-  if (from) { m.spentFrom = m.spentFrom || {}; m.spentFrom[from] = +(num(m.spentFrom[from]) + amt).toFixed(2); const p = state.pots.find(p => p.id === from); if (p) setPot(p, potBalance(p) + (p.type === "credit" ? amt : -amt)); }
+  if (from) { m.spentFrom = m.spentFrom || {}; m.spentFrom[from] = +(num(m.spentFrom[from]) + amt).toFixed(2); const p = potOf(from); if (p) setPot(p, potBalance(p) + (p.type === "credit" ? amt : -amt)); }
   ui.payCat = cat;
   save(); render();
   const c = state.categories.find(c => c.id === cat);
@@ -879,7 +891,7 @@ document.addEventListener("click", e => {
   const x = (m.payments || []).find(x => x.id === b.dataset.delpay); if (!x) return;
   m.payments = m.payments.filter(y => y !== x);
   if (hasSpentTotal(m)) m.spentTotal = Math.max(0, +(num(m.spentTotal) - num(x.amount)).toFixed(2));
-  if (x.from) { if (m.spentFrom) m.spentFrom[x.from] = Math.max(0, +(num(m.spentFrom[x.from]) - num(x.amount)).toFixed(2)); const p = state.pots.find(p => p.id === x.from); if (p) setPot(p, potBalance(p) - (p.type === "credit" ? num(x.amount) : -num(x.amount))); }
+  if (x.from) { if (m.spentFrom) m.spentFrom[x.from] = Math.max(0, +(num(m.spentFrom[x.from]) - num(x.amount)).toFixed(2)); const p = potOf(x.from); if (p) setPot(p, potBalance(p) - (p.type === "credit" ? num(x.amount) : -num(x.amount))); }
   m.spend[x.cat] = Math.max(0, +(num(m.spend[x.cat]) - num(x.amount)).toFixed(2));
   ui.open.add("paylog");
   save(); render(); toast("Payment removed");
@@ -910,17 +922,20 @@ function missingAccounts() {
 }
 function setPot(p, value) {
   const t = todayISO();
+  // changing someone else's joint account: save their file too
+  const owner = HH.people.find(pp => P[pp.id] && (P[pp.id].pots || []).includes(p));
+  if (owner && owner.id !== ui.who) dirty[owner.id] = true;
   p.history = p.history.filter(e => e.date !== t);
   p.history.push({ date: t, value: +value.toFixed(2) });
 }
 // Where money can go: any account, or the Trading 212 cash (shown on Investments)
 const T212 = "t212";
-function endName(e) { if (e === T212) return "Trading 212 (cash to invest)"; const p = state.pots.find(p => p.id === e); return p ? p.name : "Removed account"; }
-function endBal(e) { if (e === T212) return latestAt(state.sp.cash.history, todayISO()); const p = state.pots.find(p => p.id === e); return p ? potBalance(p) : 0; }
+function endName(e) { if (e === T212) return "Trading 212 (cash to invest)"; const p = potOf(e); return p ? p.name : "Removed account"; }
+function endBal(e) { if (e === T212) return latestAt(state.sp.cash.history, todayISO()); const p = potOf(e); return p ? potBalance(p) : 0; }
 // Money arriving (+) or leaving (−) an account. Paying into a credit card lowers what's owed.
 function moveMoney(e, amt) {
   if (e === T212) { setCash(endBal(T212) + amt); return; }
-  const p = state.pots.find(p => p.id === e); if (!p) return;
+  const p = potOf(e); if (!p) return;
   setPot(p, potBalance(p) + (isCredit(p) ? -amt : amt));
 }
 const countsAsSaving = (from, to) => !isSaveEnd(from) && isSaveEnd(to);
@@ -965,6 +980,7 @@ function viewWealth() {
     <div class="card kpi"><div class="kpi-top"><span class="label">Interest you're earning</span></div><div class="value pos">${gbp0(yearly)}<span style="font-size:1rem;color:var(--muted)"> / yr</span></div><div class="note">About ${gbp(yearly / 12)} a month</div></div>
   </div>
   ${groups.map(([title, f], gi) => { const list = state.pots.filter(f); const extra = gi === 1 ? t212Tile(w.cash) : ""; return list.length || extra ? `<div class="section-head"><h3>${title}</h3></div><div class="tiles">${list.map(accTile).join("")}${extra}</div>` : ""; }).join("")}
+  ${sharedPots().length ? `<div class="section-head"><h3>Shared with you</h3><span class="hint">Kept on ${esc(sharedPots()[0].owner)}'s list so it's only counted once</span></div><div class="tiles">${sharedPots().map(accTile).join("")}</div>` : ""}
   <div class="tiles" style="margin-top:14px"><button type="button" class="tile add" data-sheet="newpot" id="tile-newpot"><span class="plus">+</span>Add an account</button></div>
   <div class="grid g2" style="margin-top:16px">
     ${moves.length ? `<div class="card span2"><h3>Money moved</h3><div class="tbl-wrap"><table><tbody>${moves.map(x => `<tr><td>${shortDate(x.date)}</td><td class="wrap-t">${esc(endName(x.from))} → ${esc(endName(x.to))}${countsAsSaving(x.from, x.to) ? ' <span class="pill g">Saved</span>' : takesFromSaving(x.from, x.to) ? ' <span class="pill r">Out of savings</span>' : ""}</td><td class="r"><b>${gbp(num(x.amount))}</b></td><td class="r" style="width:34px"><button class="x" data-delmove="${x.id}" id="dm-${x.id}" aria-label="Undo this move">×</button></td></tr>`).join("")}</tbody></table></div><p class="hint">× undoes a move and puts the balances back.</p></div>` : ""}
@@ -1022,12 +1038,13 @@ function potSheet(id) {
         <label class="f">Fixed / locked until (blank if easy access)<input type="date" id="pf-${p.id}" data-pot="${p.id}" data-pf="fixedUntil" value="${p.fixedUntil || ""}"></label>
       </div>` : ""}
       ${list.length ? `<div class="scroll-y" style="max-height:170px; margin-top:12px"><table><tbody>${list.map((e, j) => `<tr><td>${shortDate(e.date)}</td><td class="r">${gbp(num(e.value))}</td><td class="r" style="width:34px"><button class="x" data-delhist="${p.id}|${e.date}" id="dh-${p.id}-${j}" aria-label="Delete entry">×</button></td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${p.type === "current" || p.type === "savings" ? `<label class="check" style="margin-top:12px"><input type="checkbox" data-joint="${p.id}" id="pj-${p.id}"${p.joint ? " checked" : ""}> Joint account (the other person can pay in, spend from and move money with it)</label>` : ""}
       <div style="margin-top:12px"><button class="small danger" data-delpot="${p.id}" id="dp-${p.id}">Remove this account</button></div>
     </details>`);
 }
 function moveSheet() {
-  const froms = state.pots.filter(p => !isCredit(p));
-  const tos = [...state.pots.map(p => [p.id, p.name + (isCredit(p) ? " (pay off)" : "")]), [T212, "Trading 212 (cash to invest)"]];
+  const froms = myAndShared().filter(p => !isCredit(p));
+  const tos = [...myAndShared().map(p => [p.id, p.name + (isCredit(p) ? " (pay off)" : "")]), [T212, "Trading 212 (cash to invest)"]];
   const from = ui.moveFrom && froms.find(p => p.id === ui.moveFrom) ? ui.moveFrom : (froms.find(p => p.type === "current") || froms[0] || {}).id;
   const fromP = state.pots.find(p => p.id === ui.moveFrom);
   const to = fromP && isCredit(fromP) ? fromP.id : (tos.find(([id]) => id !== from) || [])[0];
@@ -1060,7 +1077,7 @@ document.addEventListener("submit", e => {
     e.preventDefault(); e.stopPropagation();
     const name = $("#npName").value.trim(); if (!name) { $("#npName").focus(); return; }
     const bal = $("#npBal").value, type = $("#npType").value;
-    const p = { id: uid(), name, type, rate: num($("#npRate").value), fixedUntil: "", history: bal !== "" ? [{ date: todayISO(), value: num(bal) }] : [] };
+    const p = { id: uid(), name, type, rate: num($("#npRate").value), fixedUntil: "", history: bal !== "" ? [{ date: todayISO(), value: num(bal) }] : [] }; p.joint = /joint/i.test(name);
     if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; }
     state.pots.push(p); ui.sheet = "pot:" + p.id; save(); render(); toast("Added " + name);
   } else if (f.id === "moveForm") {
@@ -1074,7 +1091,7 @@ document.addEventListener("submit", e => {
     state.transfers = state.transfers || [];
     state.transfers.push({ id: uid(), date: todayISO(), from, to, amount: +amt.toFixed(2), saved, v: 2 });
     ui.sheet = null; ui.moveFrom = null; save(); render();
-    const tp = state.pots.find(p => p.id === to), cb = tp && isCredit(tp) && num(tp.cashback) ? amt * num(tp.cashback) / 100 : 0;
+    const tp = potOf(to), cb = tp && isCredit(tp) && num(tp.cashback) ? amt * num(tp.cashback) / 100 : 0;
     toast("Moved " + gbp(amt) + " to " + endName(to) + (saved ? ". Counted as saved" : unsaved ? ". Taken off saved this month" : "") + (cb ? ". About " + gbp(cb) + " cashback" : ""));
   }
 }, true);
@@ -1091,7 +1108,7 @@ document.addEventListener("click", e => {
   const s = e.target.closest('[data-act="setup-accounts"]');
   if (s) {
     const miss = missingAccounts();
-    miss.forEach(([name, type]) => { const p = { id: uid(), name, type, rate: 0, fixedUntil: "", history: [] }; if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; } if (type === "credit" && /santander/i.test(name)) p.cashback = 0.25; state.pots.push(p); });
+    miss.forEach(([name, type]) => { const p = { id: uid(), name, type, rate: 0, fixedUntil: "", history: [] }; if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; } if (type === "credit" && /santander/i.test(name)) p.cashback = 0.25; p.joint = /joint/i.test(name); state.pots.push(p); });
     save(); render(); toast("Added " + miss.length + " accounts. Tap each one to type its balance");
   }
 });
@@ -1375,7 +1392,7 @@ document.addEventListener("submit", e => {
     if (id === "other") { m.spentOther = v; return; }
     if (v) from[id] = v;
     const d = v - num(old[id]);
-    const p = state.pots.find(p => p.id === id);
+    const p = potOf(id);
     if (move && p && Math.abs(d) >= 0.005) { setPot(p, potBalance(p) + (p.type === "credit" ? d : -d)); changed++; }
   });
   m.spentFrom = from; m.spentTotal = +total.toFixed(2);
@@ -1565,7 +1582,7 @@ function sheetHTML() {
   }
   if (type === "spent") {
     const ct = catTotal(k), set = hasSpentTotal(m), cur = spendOf(k);
-    const accs = state.pots.filter(p => p.type === "credit" || p.type === "current").sort((a, b) => (b.type === "credit") - (a.type === "credit"));
+    const accs = myAndShared().filter(p => p.type === "credit" || p.type === "current").sort((a, b) => (b.type === "credit") - (a.type === "credit"));
     const from = m.spentFrom || {};
     const fromSum = Object.values(from).reduce((t, v) => t + num(v), 0);
     const other = m.spentOther !== undefined ? num(m.spentOther) : set ? Math.max(0, num(m.spentTotal) - fromSum) : 0;
@@ -1678,6 +1695,7 @@ document.addEventListener("click", e => {
   if (o && !o.disabled) {
     let sh = o.dataset.sheet;
     // In "Together", tapping an account opens it in its owner's view so it can be changed
+    if (sh.startsWith("pot:@")) { const ref = sh.slice(5), i = ref.indexOf(":"), pid = ref.slice(0, i); if (P[pid]) { ui.who = pid; lsSet("hb-who", pid); sh = "pot:" + ref.slice(i + 1); toast("Showing " + personName(pid) + "'s accounts (the joint one lives here)"); } }
     if (ui.who === "all" && sh.startsWith("pot:")) { const mid = sh.slice(4); for (const pp of HH.people) { const real = ((P[pp.id] || {}).pots || []).find(p => pp.id + p.id === mid); if (real) { ui.who = pp.id; lsSet("hb-who", pp.id); sh = "pot:" + real.id; toast("Showing " + pp.name + "'s money"); break; } } }
     if (o.dataset.now) ui.month = monthKey(new Date()); ui.moveFrom = o.dataset.movefrom || null; ui.sheet = sh; ui.sheetFresh = true; render(); return;
   }
@@ -1764,6 +1782,7 @@ app.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dat
 app.addEventListener("change", e => {
   const t = e.target;
   if (t.dataset.spend) { const m = ensureMonth(ui.month); m.spend[t.dataset.spend] = num(t.value); save(); later(); }
+  else if (t.dataset.joint) { const p = state.pots.find(p => p.id === t.dataset.joint); if (p) { p.joint = t.checked; save(); later(); } }
   else if (t.dataset.fixed) { const c = state.categories.find(c => c.id === t.dataset.fixed); if (c) { c.fixed = t.checked; save(); later(); } }
   else if (t.dataset.budget) { const c = state.categories.find(c => c.id === t.dataset.budget); if (c) { c.budget = num(t.value); save(); later(); } }
   else if (t.dataset.inc) { const m = ensureMonth(ui.month); m.income[t.dataset.inc] = num(t.value); save(); later(); }
@@ -2062,7 +2081,8 @@ function currentState() {
 }
 function mergeStates() {
   const ids = HH.people.map(p => p.id).filter(id => P[id]);
-  const out = blankState();
+  const out = blankState(); out.merged = true; out.transfers = [];
+  const mergedId = (pid, e) => e === "t212" ? e : String(e).startsWith("@") ? String(e).slice(1).replace(":", "") : pid + e;
   out.categories = []; out.pots = []; out.gifts = []; out.months = {};
   out.sp = { holdings: [], cash: { rate: 0, history: [] } };
   const keyOf = n => String(n || "").trim().toLowerCase();
@@ -2072,14 +2092,16 @@ function mergeStates() {
     if (!cats.has(k)) { const nc = { ...c, id: "m" + cats.size }; cats.set(k, nc); out.categories.push(nc); }
     else cats.get(k).budget = num(cats.get(k).budget) + num(c.budget);
   }));
-  const monthKeys = new Set(); ids.forEach(id => Object.keys(P[id].months).forEach(k => monthKeys.add(k)));
+  const monthKeys = new Set(); ids.forEach(id => { Object.keys(P[id].months).forEach(k => monthKeys.add(k)); (P[id].transfers || []).forEach(t => monthKeys.add(monthKey(t.date))); });
   monthKeys.forEach(k => {
-    const om = { income: { base: 0, op: 0, other: 0 }, saved: 0, spend: {}, planned: 0 };
+    const om = { income: { base: 0, op: 0, other: 0 }, saved: 0, spend: {}, planned: 0, spentFrom: {} };
     ids.forEach(id => {
       const s = P[id], m = s.months[k];
       om.planned += m && m.planned !== undefined && m.planned !== "" && m.planned !== null ? num(m.planned) : num(s.plan.monthly);
+      { const keep = state; state = s; om.saved += savedOf(k); state = keep; }
       if (!m) return;
-      om.income.base += num(m.income.base); om.income.op += num(m.income.op); om.income.other += num(m.income.other); { const keep = state; state = s; om.saved += savedOf(k); state = keep; }
+      Object.entries(m.spentFrom || {}).forEach(([e, v]) => { const mid = mergedId(id, e); om.spentFrom[mid] = num(om.spentFrom[mid]) + num(v); });
+      om.income.base += num(m.income.base); om.income.op += num(m.income.op); om.income.other += num(m.income.other);
       s.categories.forEach(c => { if (m.spend[c.id] !== undefined) { const nc = cats.get(keyOf(c.name)); om.spend[nc.id] = num(om.spend[nc.id]) + num(m.spend[c.id]); } });
     });
     if (ids.some(id => hasSpentTotal(P[id].months[k]))) { const keep = state; om.spentTotal = ids.reduce((t, id) => { state = P[id]; const v = spendOf(k); state = keep; return t + v; }, 0); }
@@ -2088,7 +2110,8 @@ function mergeStates() {
   ids.forEach(id => {
     const who = personName(id);
     P[id].gifts.forEach(g => out.gifts.push({ ...g, id: id + g.id, name: g.name + " (" + who + ")" }));
-    P[id].pots.forEach(p => out.pots.push({ ...p, id: id + p.id, name: p.name + " · " + who }));
+    P[id].pots.forEach(p => out.pots.push({ ...p, id: id + p.id, name: p.name + " · " + (p.joint ? "joint" : who) }));
+    (P[id].transfers || []).forEach(t => out.transfers.push({ ...t, from: mergedId(id, t.from), to: mergedId(id, t.to) }));
   });
   const holds = new Map();
   ids.forEach(id => P[id].sp.holdings.forEach(h => {
