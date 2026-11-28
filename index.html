@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28b">
+<meta name="build" content="2026-11-28c">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -442,6 +442,7 @@ function prepare(s) {
   (s.gifts || []).forEach(g => { if (num(g.spent) > 0 && !g.bought) g.bought = todayISO(); });
   if (!s.sp.cash) s.sp.cash = { rate: 0, history: [] };
   if (!s.transfers) s.transfers = [];
+  (s.pots || []).forEach(p => { if (p.type === "credit" && p.cashback === undefined && /santander/i.test(p.name)) p.cashback = 0.25; });
   if (!s.sp.holdings) {
     s.sp.holdings = [{ id: "sp500", name: "Vanguard S&P 500 UCITS ETF (VUSA, Dist)", short: "S&P 500", ticker: "VUSA.L", color: "#f08a4b", buys: s.sp.buys || [], currentPrice: s.sp.currentPrice || 0, priceDate: s.sp.priceDate || todayISO() }, sglnBlank()];
     delete s.sp.buys; delete s.sp.currentPrice; delete s.sp.priceDate; delete s.sp.fund;
@@ -819,6 +820,9 @@ const ACCOUNT_SETS = {
   partner: [["Chip", "savings"], ["Santander current account", "current"], ["NatWest current account", "current"], ["NatWest Rewards account", "current"], ["Monzo current account", "current"], ["Nationwide current account", "current"], ["Santander credit card", "credit"], ["NatWest credit card", "credit"]]
 };
 const isCredit = p => p.type === "credit";
+// Cashback on a card, worked out from what Spent says went on it
+const cashbackIn = (p, k) => { const f = monthData(k).spentFrom || {}; return num(f[p.id]) * num(p.cashback) / 100; };
+const cashbackYear = p => { const y = String(new Date().getFullYear()); return Object.keys(state.months).filter(k => k.startsWith(y)).reduce((t, k) => t + cashbackIn(p, k), 0); };
 const potSign = p => isCredit(p) ? -1 : 1;
 const lastUpdated = p => p.history.reduce((d, e) => e.date > d ? e.date : d, "");
 function missingAccounts() {
@@ -851,6 +855,7 @@ function accTile(p) {
   return `<button type="button" class="tile" data-sheet="pot:${p.id}" id="tile-p-${p.id}">
     <span class="tile-top"><span class="tile-name"><i class="dot" style="background:${t.color}"></i><span class="t">${esc(p.name)}</span></span>${badge}</span>
     <span class="tile-val ${isCredit(p) && bal > 0 ? "neg" : ""}">${isCredit(p) && bal > 0 ? "−" : ""}${gbp(bal)}</span>
+    ${isCredit(p) && num(p.cashback) ? `<span class="tile-note pos">${num(p.cashback)}% back · ${gbp(cashbackIn(p, monthKey(new Date())))} this month</span>` : ""}
     <span class="tile-note">${isCredit(p) ? (bal > 0 ? "Owed · " : "") : ""}${up ? (ago === 0 ? "Updated today" : ago === 1 ? "Updated yesterday" : "Updated " + ago + " days ago") : "Tap to add the balance"}</span>
   </button>`;
 }
@@ -903,6 +908,7 @@ function potSheet(id) {
   const list = [...p.history].sort((a, b) => b.date.localeCompare(a.date));
   const facts = [];
   if (info.yearly) facts.push(`Earns about <b class="pos">${gbp(info.yearly)}</b> a year`);
+  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out from what you put on this card under Spent.`);
   if (info.status === "locked") facts.push(`Locked until <b>${shortDate(info.end)}</b> (${info.daysLeft} days). About <b>${gbp0(info.atEnd)}</b> then`);
   if (info.status === "running") facts.push(`${info.paymentsLeft} of ${num(p.term)} payments left. About <b>${gbp0(info.atEnd)}</b> at the end on ${shortDate(info.end)}`);
   if (info.status === "unlocked" || info.status === "ended") facts.push(`<span class="warn-t">The fixed term has ended. Time to move it.</span>`);
@@ -921,6 +927,7 @@ function potSheet(id) {
         <label class="f">Name<input id="pn-${p.id}" data-pot="${p.id}" data-pf="name" value="${esc(p.name)}" maxlength="40"></label>
         <label class="f">Type<select id="pt-${p.id}" data-pot="${p.id}" data-pf="type">${Object.entries(TYPES).map(([k, d]) => `<option value="${k}"${p.type === k ? " selected" : ""}>${d.label}</option>`).join("")}</select></label>
         <label class="f">${isCredit(p) ? "APR %" : "Interest rate %"}<input id="pr-${p.id}" data-pot="${p.id}" data-pf="rate" inputmode="decimal" value="${num(p.rate) || ""}" placeholder="e.g. 4.5"></label>
+        ${isCredit(p) ? `<label class="f">Cashback %<input id="pcb-${p.id}" data-pot="${p.id}" data-pf="cashback" inputmode="decimal" value="${num(p.cashback) || ""}" placeholder="e.g. 0.25"></label>` : ""}
       </div>
       ${p.type === "regular" ? `<div class="row" style="margin-top:10px">
         <label class="f">Monthly payment<span class="money"><input id="pm-${p.id}" data-pot="${p.id}" data-pf="monthly" inputmode="decimal" value="${num(p.monthly) || ""}"></span></label>
@@ -999,7 +1006,7 @@ document.addEventListener("click", e => {
   const s = e.target.closest('[data-act="setup-accounts"]');
   if (s) {
     const miss = missingAccounts();
-    miss.forEach(([name, type]) => { const p = { id: uid(), name, type, rate: 0, fixedUntil: "", history: [] }; if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; } state.pots.push(p); });
+    miss.forEach(([name, type]) => { const p = { id: uid(), name, type, rate: 0, fixedUntil: "", history: [] }; if (type === "regular") { p.monthly = 0; p.start = todayISO().slice(0, 8) + "01"; p.term = 12; } if (type === "credit" && /santander/i.test(name)) p.cashback = 0.25; state.pots.push(p); });
     save(); render(); toast("Added " + miss.length + " accounts. Tap each one to type its balance");
   }
 });
@@ -1443,7 +1450,7 @@ function sheetHTML() {
       <div class="sheet-big" id="spentLive">${gbp(cur)}</div><div class="hint">spent in ${ml}</div>
       <form id="spentForm" class="stack" style="margin-top:14px">
         <div class="hint" style="font-weight:600">Where did it come from?</div>
-        <div>${accs.map(p => row(p.id, p.name, (TYPES[p.type] || {}).color, p.type === "credit" ? "Credit card · owes " + gbp(potBalance(p)) : "Balance " + gbp(potBalance(p)), num(from[p.id]))).join("")}
+        <div>${accs.map(p => row(p.id, p.name, (TYPES[p.type] || {}).color, p.type === "credit" ? "Credit card · owes " + gbp(potBalance(p)) + (num(p.cashback) ? " · " + num(p.cashback) + "% back" : "") : "Balance " + gbp(potBalance(p)), num(from[p.id]))).join("")}
         ${row("other", accs.length ? "Cash or somewhere else" : "Total spent", "#c3c9dc", "", other)}</div>
         ${accs.length ? `<label class="check"><input type="checkbox" id="spentBal" checked> Change those account balances too (adds to what the card owes, takes it off the current account)</label>` : ""}
         <button class="primary block" type="submit" id="btnSpent">Save</button>
@@ -1645,7 +1652,7 @@ app.addEventListener("change", e => {
     const f = t.dataset.pf;
     if (f === "name") p.name = t.value.trim() || "Pot";
     else if (f === "type") { p.type = t.value; if (p.type === "regular") { p.term = num(p.term) || 12; p.start = p.start || todayISO().slice(0, 8) + "01"; p.fixedUntil = ""; } }
-    else if (f === "rate" || f === "monthly" || f === "term") p[f] = num(t.value);
+    else if (f === "rate" || f === "monthly" || f === "term" || f === "cashback") p[f] = num(t.value);
     else p[f] = t.value;
     save(); later();
   }
