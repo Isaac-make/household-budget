@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28h">
+<meta name="build" content="2026-11-28i">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -258,20 +258,31 @@ label.btn { cursor: pointer; }
 .spent-row .tile-name { align-items: flex-start; }
 .spent-row .dot { margin-top: 6px; }
 .kpi-btn .sparkw { display: block; }
-.miles-track { position: relative; height: 150px; margin: 18px 34px 0 6px; }
-.miles-line { position: absolute; left: 0; right: 0; top: 30px; height: 8px; border-radius: 999px; background: #edf0f7; overflow: hidden; }
-.miles-line i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6070ff, #4256f4); }
-.miles-you { position: absolute; top: 0; transform: translateX(-50%); }
-.miles-you span { display: block; white-space: nowrap; background: var(--fg); color: #fff; font-size: .72rem; font-weight: 700; padding: 3px 8px; border-radius: 8px; transform: translateX(0); }
-.miles-you::after { content: ""; display: block; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--blue); margin: 4px auto 0; box-shadow: 0 0 0 4px rgba(66,86,244,.18); }
-.mile { position: absolute; top: 22px; transform: translateX(-50%); text-align: center; width: 110px; }
-.mile-ico { width: 52px; height: 52px; margin: 0 auto; border-radius: 50%; background: #fff; border: 2px solid #e3e7f3; display: grid; place-items: center; font-size: 1.6rem; filter: grayscale(1); opacity: .55; box-shadow: var(--shadow); }
-.mile.next .mile-ico { opacity: .9; filter: grayscale(.3); border-color: #c8cff6; }
-.mile.hit .mile-ico { filter: none; opacity: 1; border-color: var(--blue); background: var(--blue-soft); }
-.mile-amt { font-weight: 800; margin-top: 6px; font-size: .95rem; }
-.mile.hit .mile-amt { color: var(--blue); }
-.mile-what { font-size: .74rem; color: var(--muted); line-height: 1.3; }
-@media (max-width: 640px) { .mile { width: 74px; } .mile-ico { width: 42px; height: 42px; font-size: 1.25rem; } .mile-what { font-size: .66rem; } .miles-track { height: 160px; margin-right: 26px; } }
+.miles-scroll { overflow-x: auto; margin: 0 -20px -8px; padding: 0 20px 8px; scrollbar-width: none; }
+.miles-scroll::-webkit-scrollbar { display: none; }
+.miles-track { position: relative; height: 190px; margin-top: 16px; }
+.miles-line { position: absolute; left: 0; right: 0; top: 66px; height: 10px; border-radius: 999px; background: #edf0f7; overflow: hidden; box-shadow: inset 0 1px 2px rgba(16,24,64,.06); }
+.miles-line i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22d3ee, #6070ff 45%, #a855f7); }
+.miles-you { position: absolute; top: 0; transform: translateX(-50%); z-index: 2; text-align: center; }
+.miles-you span { display: block; white-space: nowrap; background: var(--fg); color: #fff; font-size: .72rem; font-weight: 700; padding: 4px 9px; border-radius: 9px; }
+.miles-you::after { content: ""; display: block; width: 2px; height: 34px; margin: 0 auto; background: linear-gradient(var(--fg), rgba(15,23,51,0)); }
+.mile { position: absolute; top: 40px; transform: translateX(-50%); text-align: center; width: 92px; }
+.mile-ico { position: relative; width: 62px; height: 62px; margin: 0 auto; border-radius: 20px; display: grid; place-items: center; font-size: 1.9rem; background: linear-gradient(145deg, #e9ecf5, #d9deec); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 4px 10px rgba(16,24,64,.08); transform: rotate(-4deg); transition: transform .2s; }
+.mile-ico span { filter: grayscale(1) opacity(.45); transform: rotate(4deg); }
+.mile.next .mile-ico { background: linear-gradient(145deg, #fff, #eef0ff); box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--g2), 0 8px 22px rgba(66,86,244,.25); animation: milePulse 2.2s ease-in-out infinite; }
+.mile.next .mile-ico span { filter: none; }
+.mile.hit .mile-ico { background: linear-gradient(145deg, var(--g1), var(--g2)); box-shadow: 0 10px 24px -6px var(--g2), inset 0 1px 0 rgba(255,255,255,.4); }
+.mile.hit .mile-ico span { filter: drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+.mile:hover .mile-ico { transform: rotate(0) scale(1.06); }
+.mile-tick, .mile-lock { position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .7rem; transform: rotate(4deg); }
+.mile-tick { background: #16b47e; color: #fff; border: 2px solid #fff; }
+.mile-lock { background: #fff; box-shadow: 0 1px 3px rgba(16,24,64,.2); font-size: .62rem; }
+.mile-amt { font-weight: 800; margin-top: 10px; font-size: 1rem; letter-spacing: -.01em; }
+.mile.hit .mile-amt { color: var(--g2); }
+.mile.next .mile-amt { color: var(--blue); }
+.mile-what { font-size: .72rem; color: var(--muted); line-height: 1.3; margin-top: 2px; }
+@keyframes milePulse { 50% { transform: rotate(0) scale(1.07); } }
+@media (max-width: 640px) { .miles-scroll { margin: 0 -16px -6px; padding: 0 16px 6px; } }
 .kpi-btn > .kpi-top { display: flex; }
 .kpi-btn:hover { border-color: #cfd5f7; background: #fff; }
 .kpi-btn .note { color: var(--blue); }
@@ -640,23 +651,36 @@ function trendBadge(cur, prev, upGood = true) {
 const lastMonths = (n, end = monthKey(new Date())) => Array.from({ length: n }, (_, i) => shiftMonth(end, i - n + 1));
 
 const MILESTONES = [
-  { at: 50000, icon: "🚗", what: "A brand-new Tesla Model Y" },
-  { at: 100000, icon: "🏎️", what: "A Porsche 911" },
-  { at: 150000, icon: "🏡", what: "A two-bed house in lots of UK towns" },
-  { at: 200000, icon: "⛵", what: "A sailing yacht" }
+  { at: 10000, icon: "🏝️", what: "Two weeks in the Maldives", g: ["#22d3ee", "#0ea5e9"] },
+  { at: 25000, icon: "⌚", what: "A Rolex Daytona", g: ["#fbbf24", "#d97706"] },
+  { at: 50000, icon: "🏍️", what: "A Ducati Panigale V4 and a Range Rover Evoque", g: ["#f87171", "#dc2626"] },
+  { at: 100000, icon: "🏎️", what: "A Porsche 911 Carrera", g: ["#a78bfa", "#6d28d9"] },
+  { at: 150000, icon: "🛥️", what: "Your own speedboat", g: ["#34d399", "#059669"] },
+  { at: 200000, icon: "🐎", what: "A Ferrari Roma", g: ["#fb7185", "#be123c"] }
 ];
 function milestonesHTML(total) {
-  const top = MILESTONES[MILESTONES.length - 1].at;
-  const pos = v => Math.max(0, Math.min(100, v / top * 100));
+  const n = MILESTONES.length;
+  // Milestones are evenly spaced; the bar fills between them in proportion
+  const slot = i => (i + 0.5) / n * 100;
+  let fill = 0;
+  for (let i = 0; i < n; i++) {
+    const lo = i ? MILESTONES[i - 1].at : 0, hi = MILESTONES[i].at;
+    const a = i ? slot(i - 1) : 0, b = slot(i);
+    if (total >= hi) { fill = b; continue; }
+    fill = a + Math.max(0, (total - lo) / (hi - lo)) * (b - a); break;
+  }
+  if (total >= MILESTONES[n - 1].at) fill = 100;
   const next = MILESTONES.find(m => total < m.at);
+  const done = MILESTONES.filter(m => total >= m.at).length;
   return `<div class="card miles" style="margin-top:16px">
-    <div class="kpi-top"><h3 style="margin:0">Milestones</h3><span class="hint">${next ? `<b style="color:var(--fg)">${gbp0(next.at - total)}</b> to go until ${gbp0(next.at)}` : '<span class="pos">Every milestone smashed</span>'}</span></div>
-    <div class="miles-track">
-      <div class="miles-line"><i style="width:${pos(total)}%"></i></div>
-      <div class="miles-you" style="left:${pos(total)}%"><span>You · ${gbp0(total)}</span></div>
-      ${MILESTONES.map(m => `<div class="mile${total >= m.at ? " hit" : ""}${next === m ? " next" : ""}" style="left:${pos(m.at)}%">
-        <div class="mile-ico" aria-hidden="true">${m.icon}</div><div class="mile-amt">£${m.at / 1000}k</div><div class="mile-what">${m.what}</div></div>`).join("")}
-    </div>
+    <div class="kpi-top"><div><h3 style="margin:0">Milestones</h3><p class="hint" style="margin:2px 0 0">${done} of ${n} unlocked</p></div><span class="hint" style="text-align:right">${next ? `<b style="color:var(--fg)">${gbp0(next.at - total)}</b> to go until<br>${next.icon} ${esc(next.what)}` : '<span class="pos">Every milestone smashed 🏆</span>'}</span></div>
+    <div class="miles-scroll"><div class="miles-track" style="min-width:${n * 96}px">
+      <div class="miles-line"><i style="width:${fill}%"></i></div>
+      <div class="miles-you" style="left:${fill}%"><span>You · ${gbp0(total)}</span></div>
+      ${MILESTONES.map((m, i) => { const hit = total >= m.at; return `<div class="mile${hit ? " hit" : ""}${next === m ? " next" : ""}" style="left:${slot(i)}%;--g1:${m.g[0]};--g2:${m.g[1]}">
+        <div class="mile-ico" aria-hidden="true"><span>${m.icon}</span>${hit ? '<b class="mile-tick">✓</b>' : next === m ? "" : '<b class="mile-lock">🔒</b>'}</div>
+        <div class="mile-amt">£${m.at >= 1000 ? m.at / 1000 + "k" : m.at}</div><div class="mile-what">${esc(m.what)}</div></div>`; }).join("")}
+    </div></div>
   </div>`;
 }
 function viewOverview() {
