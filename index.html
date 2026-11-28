@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28i">
+<meta name="build" content="2026-11-28j">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -254,6 +254,17 @@ label.btn { cursor: pointer; }
 .tile-val, .tile-note, .tile .meter { display: block; }
 .kpi-btn { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 20px; border-radius: 20px; }
 .kpi-btn > span { display: block; }
+.flow { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr); align-items: stretch; gap: 4px; padding: 8px; }
+.flow-cell { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; gap: 2px; border: none; box-shadow: none; background: transparent; border-radius: 14px; padding: 14px; font: inherit; color: inherit; min-width: 0; }
+button.flow-cell { cursor: pointer; }
+button.flow-cell:hover { background: var(--surface-2); }
+.flow-cell .label { font-weight: 600; font-size: .9rem; }
+.flow-cell .value { font-weight: 800; font-size: 1.75rem; letter-spacing: -.03em; line-height: 1.15; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.flow-cell .note { font-size: .8rem; color: var(--blue); overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.flow-cell.result { background: var(--surface-2); }
+.flow-cell.result .note { color: var(--muted); }
+.flow-op { align-self: center; font-size: 1.4rem; font-weight: 700; color: #b5bbd0; padding: 0 2px; }
+@media (max-width: 900px) { .flow { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } .flow-op { display: none; } .flow-cell { background: var(--surface-2); } .flow-cell .value { font-size: 1.4rem; } }
 .spent-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f2f8; }
 .spent-row .tile-name { align-items: flex-start; }
 .spent-row .dot { margin-top: 6px; }
@@ -716,12 +727,18 @@ function viewOverview() {
     ${spark(keys.slice(-12).map(netWorthAt), "#fff", true)}
   </div>
   ${milestonesHTML(w.total)}
-  <div class="grid g4" style="margin-top:16px">
-    <button type="button" class="card kpi kpi-btn" data-sheet="income" data-now="1" id="ovIncome"><span class="kpi-top"><span class="label">Money in</span>${trendBadge(inc, incomeOf(pm))}</span><span class="value">${gbp0(inc)}</span><span class="note">${inParts || "Tap to add your pay"}</span>${spark(L.map(x => incomeOf(monthData(x))))}</button>
-    <button type="button" class="card kpi kpi-btn" data-sheet="spent" data-now="1" id="ovSpent"><span class="kpi-top"><span class="label">Spent</span>${trendBadge(sp, spendOf(pk), false)}</span><span class="value">${gbp0(sp)}</span><span class="note">${hasSpentTotal(m) ? "Typed in · tap to change" : "Tap to type your real total"}</span>${spark(L.map(spendOf))}</button>
-    <button type="button" class="card kpi kpi-btn" data-sheet="saved" data-now="1" id="ovSaved"><span class="kpi-top"><span class="label">Saved / invested</span>${trendBadge(saved, num(pm.saved))}</span><span class="value">${gbp0(saved)}</span><span class="note">${plannedFor(k) ? (saved >= plannedFor(k) ? "Plan hit" : gbp0(plannedFor(k) - saved) + " to hit your plan") : "Tap to change"}</span>${spark(L.map(x => num(monthData(x).saved)))}</button>
-    <div class="card kpi"><div class="kpi-top"><span class="label">Left over</span>${trendBadge(left, pLeft)}</div><div class="value ${left >= 0 ? "" : "neg"}">${gbp0(left)}</div><div class="note">After spending and saving</div>${spark(L.map(x => { const mm = monthData(x); return incomeOf(mm) - spendOf(x) - num(mm.saved); }))}</div>
-  </div>
+  ${(() => {
+    const spv = spValueNow(), ig = spv.value - spv.paid, igp = spv.paid ? ig / spv.paid * 100 : 0;
+    const cards = state.pots.filter(p => p.type === "credit"), cb = cards.reduce((t, p) => t + cashbackYear(p), 0);
+    const nAcc = state.pots.filter(p => p.type !== "credit").length;
+    const box = (go, id, label, badge, value, cls, note) => `<button type="button" class="card kpi kpi-btn" data-go="${go}" id="${id}"><span class="kpi-top"><span class="label">${label}</span>${badge}</span><span class="value ${cls}">${value}</span><span class="note">${note}</span></button>`;
+    return `<div class="grid g4" style="margin-top:16px">
+      ${box("wealth", "ovAcc", "In the bank", "", gbp0(w.owned + w.cash - w.owed), w.owned + w.cash - w.owed < 0 ? "neg" : "", nAcc ? `${nAcc} account${nAcc === 1 ? "" : "s"}, after credit cards` : "Tap to add your accounts")}
+      ${box("sp500", "ovInv", "Investments", spv.paid ? `<span class="badge ${ig >= 0 ? "up" : "down"}">${ig >= 0 ? "▲" : "▼"} ${pct(igp).replace(/^[+−]/, "")}</span>` : "", gbp0(spv.value), "", spv.paid ? `${ig >= 0 ? "+" : "−"}${gbp0(Math.abs(ig))} on the ${gbp0(spv.paid)} you put in` : "Tap to add what you own")}
+      ${box("wealth", "ovCards", "Credit cards", cb ? `<span class="badge up">+${gbp(cb)} back</span>` : "", gbp0(w.owed), w.owed > 0 ? "neg" : "", w.owed > 0 ? "Owed right now" : cards.length ? "Nothing owed" : "No cards added")}
+      ${box("wealth", "ovInt", "Interest a year", "", gbp0(interest), "pos", interest ? `About ${gbp(interest / 12)} a month, for doing nothing` : "Add your savings rates on Accounts")}
+    </div>`;
+  })()}
   <div class="grid g2" style="margin-top:16px">
     <div class="card"><h3>Where this month's money went</h3>${sp ? '<div class="chart-box"><canvas id="cSpendPie" aria-label="Spending by category this month"></canvas></div>' : '<div class="empty">No spending logged this month yet.</div>'}</div>
     <div class="card"><h3>What you've got</h3>${w.total ? '<div class="chart-box"><canvas id="cWealthPie" aria-label="Wealth split"></canvas></div>' : '<div class="empty">Add your savings and investments to see them here.</div>'}</div>
@@ -784,20 +801,16 @@ function viewMonth() {
     <div class="month-nav"><button class="ghost" data-mnav="-1" id="mPrev" aria-label="Previous month">◀</button><span class="m">${monthLabel(k, true)}</span><button class="ghost" data-mnav="1" id="mNext" aria-label="Next month">▶</button></div>
     <div class="row" style="flex:0 0 auto">${prev ? '<button id="btnCopyBills" data-act="copy-bills">Copy bills from last month</button>' : ""}<button class="primary" data-sheet="pay" id="btnQuickPay">+ Log a payment</button></div>
   </div>
-  <div class="grid g4">
-    <button type="button" class="card kpi kpi-btn" data-sheet="income" id="kpiIncome"><span class="kpi-top"><span class="label">Money in</span>${trendBadge(inc, incomeOf(pm))}</span><span class="value">${gbp0(inc)}</span><span class="note">Tap to change</span></button>
-    <button type="button" class="card kpi kpi-btn" data-sheet="spent" id="kpiSpent"><span class="kpi-top"><span class="label">Spent</span>${trendBadge(sp, spendOf(pk), false)}</span><span class="value">${gbp0(sp)}</span><span class="note">${hasSpentTotal(m) ? "Typed in · tap to change" : "Tap to type your real total"}</span></button>
-    <button type="button" class="card kpi kpi-btn" data-sheet="saved" id="kpiSaved"><span class="kpi-top"><span class="label">Saved / invested</span></span><span class="value">${gbp0(saved)}</span><span class="note">Tap to change</span></button>
-    <div class="card kpi"><div class="kpi-top"><span class="label">Left over</span></div><div class="value ${left >= 0 ? "pos" : "neg"}">${gbp0(left)}</div></div>
+  <div class="card flow">
+    <button type="button" class="flow-cell" data-sheet="income" id="kpiIncome"><span class="label">Money in</span><span class="value">${gbp0(inc)}</span><span class="note">${[["Pay", num(m.income.base)], ["Op", num(m.income.op)], ["Extra", num(m.income.other)]].filter(x => x[1]).map(x => x[0] + " " + gbp0(x[1])).join(" · ") || "Tap to add your pay"}</span></button>
+    <span class="flow-op" aria-hidden="true">−</span>
+    <button type="button" class="flow-cell" data-sheet="spent" id="kpiSpent"><span class="label">Spent</span><span class="value">${gbp0(sp)}</span><span class="note">${(() => { const f = m.spentFrom || {}; const parts = Object.keys(f).map(id => { const p = state.pots.find(p => p.id === id); return p && num(f[id]) ? p.name.replace(/ current account$/i, "").replace(/ credit card$/i, " card") + " " + gbp0(num(f[id])) : ""; }).filter(Boolean); return parts.length ? parts.slice(0, 2).join(" · ") : hasSpentTotal(m) ? "Typed in" : "Tap to update"; })()}</span></button>
+    <span class="flow-op" aria-hidden="true">−</span>
+    <button type="button" class="flow-cell" data-sheet="saved" id="kpiSaved"><span class="label">Saved / invested</span><span class="value">${gbp0(saved)}</span><span class="note">${pl ? (saved >= pl ? `<span class="pos">Plan of ${gbp0(pl)} hit</span>` : `${gbp0(pl - saved)} to hit your plan`) : "Tap to update"}</span></button>
+    <span class="flow-op" aria-hidden="true">=</span>
+    <div class="flow-cell result"><span class="label">Left over</span><span class="value ${left >= 0 ? "pos" : "neg"}">${gbp0(left)}</span><span class="note">${inc ? Math.round(left / inc * 100) + "% of money in" : ""}</span></div>
   </div>
-  <div class="section-head"><h3>Money in</h3><span class="hint">Tap a box to change it</span></div>
-  <div class="tiles">
-    ${inTile("inc:base", "Base pay", num(m.income.base), "Take-home pay", "#4256f4")}
-    ${inTile("inc:op", "Op pay", num(m.income.op), num(m.income.op) ? "Deployment pay" : "Not on Op this month", "#8b5cf6")}
-    ${inTile("inc:extra", "Extra money", num(m.income.other), extras.length ? `${extras.length} thing${extras.length === 1 ? "" : "s"} logged` : "Sold something? Log it here", "#16b47e")}
-    ${inTile("saved", "Saved / invested", saved, pl ? (saved >= pl ? `<span class="pos">Hit your plan of ${gbp0(pl)}</span>` : `${gbp0(pl - saved)} short of your ${gbp0(pl)} plan`) : "Moved to savings", "#f5a524")}
-  </div>
-  <div class="section-head"><h3>Money out</h3><span class="hint">${gbp(sp)} spent${totalBudget ? " of " + gbp0(totalBudget) + " in limits" : ""}</span></div>
+  <div class="section-head"><h3>Spending by category</h3><span class="hint">Optional: for limits and logging payments${totalBudget ? " · limits add up to " + gbp0(totalBudget) : ""}</span></div>
   <div class="tiles">${tiles}<button type="button" class="tile add" data-sheet="newcat" id="tile-newcat"><span class="plus">+</span>Add a category</button></div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card"><h3>Spending split</h3>${sp ? '<div class="chart-box short"><canvas id="cMonthPie"></canvas></div>' : '<div class="empty">Log a payment and the chart appears here.</div>'}</div>
@@ -1469,12 +1482,15 @@ function sheetHTML() {
   }
   if (type === "saved") {
     const pl = plannedFor(k), saved = num(m.saved);
+    const mvs = (state.transfers || []).filter(t => t.saved && t.date.startsWith(k));
     return sheetWrap('<span class="dot" style="background:#f5a524"></span>Saved / invested', "Saved or invested", `
       <div class="row">
         <label class="f">Moved to savings or investments<span class="money lg"><input id="inc-saved" data-saved="1" inputmode="decimal" value="${saved || ""}" placeholder="0.00" autocomplete="off"></span></label>
         <label class="f">Planned to save<span class="money lg"><input id="inc-planned" data-planned="1" inputmode="decimal" value="${m.planned !== undefined && m.planned !== "" ? num(m.planned) : ""}" placeholder="${num(state.plan.monthly)}" autocomplete="off"></span></label>
       </div>
-      ${pl ? `<p class="hint">${saved >= pl ? `<span class="pos">You hit your plan of ${gbp0(pl)}.</span>` : `${gbp0(pl - saved)} short of your plan of ${gbp0(pl)}.`} Leave "Planned" blank to use your usual ${gbp0(num(state.plan.monthly))} from the Progress tab.</p>` : ""}${done}`, ml);
+      ${pl ? `<p class="hint">${saved >= pl ? `<span class="pos">You hit your plan of ${gbp0(pl)}.</span>` : `${gbp0(pl - saved)} short of your plan of ${gbp0(pl)}.`} Leave "Planned" blank to use your usual ${gbp0(num(state.plan.monthly))} from the Progress tab.</p>` : ""}<div class="row" style="margin-top:12px"><button type="button" class="small" data-sheet="move" id="svMove">⇄ Move money into savings or Trading 212</button></div>
+      ${mvs.length ? `<div class="sheet-sec"><h4>Counted from Move money</h4><table><tbody>${mvs.map(t => `<tr><td>${shortDate(t.date)}</td><td class="wrap-t">${esc(endName(t.from))} → ${esc(endName(t.to))}</td><td class="r"><b>${gbp(num(t.amount))}</b></td></tr>`).join("")}</tbody></table><p class="hint" style="margin-bottom:0">These are already in the total above.</p></div>` : ""}
+      ${done}`, ml);
   }
   if (type === "spent") {
     const ct = catTotal(k), set = hasSpentTotal(m), cur = spendOf(k);
