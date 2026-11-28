@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="build" content="2026-11-28d">
+<meta name="build" content="2026-11-28e">
 <title>Household Budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -823,8 +823,10 @@ const isCredit = p => p.type === "credit";
 // Cashback on a card, worked out from what Spent says went on it
 // Uses whichever is bigger that month: what Spent says went on the card, or what was paid off it with Move money
 const cardPaidIn = (p, k) => (state.transfers || []).filter(t => t.to === p.id && t.date.startsWith(k)).reduce((a, t) => a + num(t.amount), 0);
-const cashbackIn = (p, k) => { const f = monthData(k).spentFrom || {}; return Math.max(num(f[p.id]), cardPaidIn(p, k)) * num(p.cashback) / 100; };
-const cashbackYear = p => { const y = String(new Date().getFullYear()); const ks = new Set(Object.keys(state.months).concat((state.transfers || []).map(t => monthKey(t.date)))); return [...ks].filter(k => k.startsWith(y)).reduce((t, k) => t + cashbackIn(p, k), 0); };
+// ...or the highest balance typed in for the card that month
+const cardOwedIn = (p, k) => p.history.filter(e => e.date.startsWith(k)).reduce((a, e) => Math.max(a, num(e.value)), 0);
+const cashbackIn = (p, k) => { const f = monthData(k).spentFrom || {}; return Math.max(num(f[p.id]), cardPaidIn(p, k), cardOwedIn(p, k)) * num(p.cashback) / 100; };
+const cashbackYear = p => { const y = String(new Date().getFullYear()); const ks = new Set(Object.keys(state.months).concat((state.transfers || []).map(t => monthKey(t.date)), p.history.map(e => monthKey(e.date)))); return [...ks].filter(k => k.startsWith(y)).reduce((t, k) => t + cashbackIn(p, k), 0); };
 const potSign = p => isCredit(p) ? -1 : 1;
 const lastUpdated = p => p.history.reduce((d, e) => e.date > d ? e.date : d, "");
 function missingAccounts() {
@@ -910,7 +912,7 @@ function potSheet(id) {
   const list = [...p.history].sort((a, b) => b.date.localeCompare(a.date));
   const facts = [];
   if (info.yearly) facts.push(`Earns about <b class="pos">${gbp(info.yearly)}</b> a year`);
-  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out from what you spent on this card under Spent, or what you paid off it with Move money, whichever is more each month.`);
+  if (isCredit(p) && num(p.cashback)) facts.push(`${num(p.cashback)}% cashback: about <b class="pos">${gbp(cashbackIn(p, monthKey(new Date())))}</b> this month, <b class="pos">${gbp(cashbackYear(p))}</b> so far this year. Worked out each month from the biggest of: the balance you type in here, what Spent says went on the card, or what you paid off it with Move money.`);
   if (info.status === "locked") facts.push(`Locked until <b>${shortDate(info.end)}</b> (${info.daysLeft} days). About <b>${gbp0(info.atEnd)}</b> then`);
   if (info.status === "running") facts.push(`${info.paymentsLeft} of ${num(p.term)} payments left. About <b>${gbp0(info.atEnd)}</b> at the end on ${shortDate(info.end)}`);
   if (info.status === "unlocked" || info.status === "ended") facts.push(`<span class="warn-t">The fixed term has ended. Time to move it.</span>`);
